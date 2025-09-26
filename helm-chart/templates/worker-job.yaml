@@ -1,0 +1,15 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "cloudforge-ai.fullname" . }}-worker-{{ randAlphaNum 5 | lower }}
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: worker
+          image: alpine:3.20
+          command: ["/bin/sh", "-c"]
+          args:
+            - echo "Hello from worker job" && sleep 2 && echo "Done";
