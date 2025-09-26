@@ -20,7 +20,6 @@ export default function LoginPage() {
         body: JSON.stringify({ identifier }),
       });
       const data = await res.json();
-      if (!res.ok || !data?.ok) throw new Error(data?.error || "failed");
       setMsg(`OTP sent (demo code: ${data.code})`);
       setPhase("verify");
     } catch (e: any) {
@@ -39,7 +38,12 @@ export default function LoginPage() {
       });
       const data = await res.json();
       if (!res.ok || !data?.ok) throw new Error(data?.error || "failed");
-      setMsg(`Logged in with token: ${data.token}`);
+      try {
+        if (typeof window !== 'undefined' && data?.token) {
+          localStorage.setItem('cf_jwt', data.token);
+        }
+      } catch {}
+      setMsg(`Logged in. Token saved for uploads.`);
     } catch (e: any) {
       setMsg(e.message || "failed");
     }
