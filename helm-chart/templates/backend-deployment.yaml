@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "cloudforge-ai.fullname" . }}-backend
+  labels:
+    app: {{ include "cloudforge-ai.name" . }}
+    component: backend
+spec:
+  replicas: {{ .Values.replicaCount.backend }}
+  selector:
+    matchLabels:
+      app: {{ include "cloudforge-ai.name" . }}
+      component: backend
+  template:
+    metadata:
+      labels:
+        app: {{ include "cloudforge-ai.name" . }}
+        component: backend
+    spec:
+      containers:
+        - name: backend
+          image: "{{ .Values.image.repository.backend }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: 4000
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 4000
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 4000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.resources.backend | nindent 12 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "cloudforge-ai.fullname" . }}-backend
+  labels:
+    app: {{ include "cloudforge-ai.name" . }}
+    component: backend
+spec:
+  type: {{ .Values.service.backend.type }}
+  selector:
+    app: {{ include "cloudforge-ai.name" . }}
+    component: backend
+  ports:
+    - name: http
+      port: {{ .Values.service.backend.port }}
+      targetPort: 4000
