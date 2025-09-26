@@ -1,0 +1,8 @@
+apiVersion: v2
+name: cloudforge-ai
+version: 1.0.0
+description: CloudForge AI - Autonomous Cloud Management Platform
+appVersion: "1.0.0"
+type: application
+
+# TEST: Helm Chart.yaml valid

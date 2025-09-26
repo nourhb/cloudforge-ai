@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloudforge-backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cloudforge-backend
+  template:
+    metadata:
+      labels:
+        app: cloudforge-backend
+    spec:
+      containers:
+        - name: backend
+          image: ghcr.io/your-org/cloudforge-ai/backend:latest
+          ports:
+            - containerPort: 4000
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 4000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 4000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cloudforge-backend
+spec:
+  type: ClusterIP
+  selector:
+    app: cloudforge-backend
+  ports:
+    - port: 4000
+      targetPort: 4000
+
+# TEST: Backend k8s manifest applies

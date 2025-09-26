@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloudforge-frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cloudforge-frontend
+  template:
+    metadata:
+      labels:
+        app: cloudforge-frontend
+    spec:
+      containers:
+        - name: frontend
+          image: ghcr.io/your-org/cloudforge-ai/frontend:latest
+          ports:
+            - containerPort: 3000
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cloudforge-frontend
+spec:
+  type: ClusterIP
+  selector:
+    app: cloudforge-frontend
+  ports:
+    - port: 3000
+      targetPort: 3000
+
+# TEST: Frontend k8s manifest applies

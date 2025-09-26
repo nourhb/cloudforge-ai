@@ -1,0 +1,32 @@
+name: Build & Test
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Frontend - Install and Test
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Backend - Install and Test
+        working-directory: backend
+        run: |
+          npm ci
+          npm run build
+          npm run test -- --runInBand
+
+# TEST: CI pipeline builds and tests

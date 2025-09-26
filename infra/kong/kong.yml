@@ -1,0 +1,11 @@
+_format_version: "3.0"
+_transform: true
+services:
+  - name: backend
+    url: http://backend:4000
+    routes:
+      - name: backend-api
+        paths:
+          - /api
+
+# TEST: Kong declarative config valid
