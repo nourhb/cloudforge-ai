@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [20]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Frontend install
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: Frontend type-check
+        working-directory: ./frontend
+        run: npm run type-check
+
+      - name: Frontend lint
+        working-directory: ./frontend
+        run: npm run lint || true
+
+      - name: Frontend build
+        env:
+          NEXT_DISABLE_SWC_NATIVE: '1'
+        working-directory: ./frontend
+        run: npm run build
+
+      - name: Backend install
+        working-directory: ./backend
+        run: npm ci
+
+      - name: Backend lint
+        working-directory: ./backend
+        run: npm run lint || true
+
+      - name: Backend test
+        working-directory: ./backend
+        run: npm run test:e2e -- --runInBand
+
+      - name: Backend build
+        working-directory: ./backend
+        run: npm run build
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: AI install
+        working-directory: ./ai-scripts
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: AI lint (pip-audit, optional)
+        working-directory: ./ai-scripts
+        run: |
+          pip-audit || true

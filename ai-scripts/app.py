@@ -8,6 +8,7 @@ from migration_analyzer import analyze_schema
 from forecasting import forecast_cpu
 from anomaly_detector import detect_anomalies
 from doc_generator import generate_docs
+from iac_generator import generate_iac
 
 app = Flask(__name__)
 app.wsgi_app = ProxyFix(app.wsgi_app)
@@ -19,9 +20,40 @@ handler.setLevel(logging.INFO)
 app.logger.addHandler(handler)
 app.logger.setLevel(logging.INFO)
 
+# Simple metrics
+_start_time = __import__('time').time()
+_request_count = 0
+
+@app.before_request
+def _inc_requests():
+    global _request_count
+    _request_count += 1
+
 @app.get('/health')
 def health():
-    return jsonify({"status": "ok"})
+    return jsonify({
+        "status": "ok",
+        "service": "ai-scripts",
+        "version": "1.0.0",
+        "port": int(os.getenv('AI_PORT', '5001')),
+    })
+
+@app.get('/metrics')
+def metrics():
+    # Minimal Prometheus exposition format for AI service
+    now = __import__('time').time()
+    uptime = int(now - _start_time)
+    lines = []
+    lines.append('# HELP ai_up 1 if the AI service is up')
+    lines.append('# TYPE ai_up gauge')
+    lines.append('ai_up 1')
+    lines.append('# HELP ai_requests_total Total number of HTTP requests received')
+    lines.append('# TYPE ai_requests_total counter')
+    lines.append(f'ai_requests_total {_request_count}')
+    lines.append('# HELP ai_uptime_seconds Service uptime in seconds')
+    lines.append('# TYPE ai_uptime_seconds gauge')
+    lines.append(f'ai_uptime_seconds {uptime}')
+    return ('\n'.join(lines) + '\n', 200, {'Content-Type': 'text/plain; version=0.0.4'})
 
 @app.post('/ai/migration/analyze')
 def ai_migration_analyze():
@@ -33,6 +65,19 @@ def ai_migration_analyze():
     except Exception as e:
         app.logger.exception('Error in migration analyze')
         return jsonify({"ok": False, "error": str(e)}), 400
+
+@app.get('/whoami')
+def whoami():
+    try:
+        routes = sorted([str(r) for r in app.url_map.iter_rules()])
+    except Exception:
+        routes = []
+    return jsonify({
+        "ok": True,
+        "cwd": os.getcwd(),
+        "file": __file__,
+        "routes": routes,
+    })
 
 @app.post('/ai/forecast/cpu')
 def ai_forecast_cpu():
@@ -68,7 +113,24 @@ def ai_docs_generate():
         app.logger.exception('Error in doc generation')
         return jsonify({"ok": False, "error": str(e)}), 400
 
+@app.post('/ai/iac/generate')
+def ai_iac_generate():
+    try:
+        payload = request.get_json(force=True)
+        prompt = payload.get('prompt', '')
+        result = generate_iac(prompt)
+        return jsonify({"ok": True, **result})
+    except Exception as e:
+        app.logger.exception('Error in IaC generation')
+        return jsonify({"ok": False, "error": str(e)}), 400
+
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    # Log registered routes for debugging
+    try:
+        app.logger.info("Registered routes:\n" + "\n".join(sorted([str(r) for r in app.url_map.iter_rules()])))
+    except Exception:
+        pass
+    port = int(os.getenv('AI_PORT', '5001'))
+    app.run(host='0.0.0.0', port=port)
 
 # TEST: Flask app serves /health and AI endpoints on Python 3.12.6

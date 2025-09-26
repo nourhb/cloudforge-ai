@@ -5,7 +5,13 @@ from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 import os
 
-_summarizer = pipeline('summarization', model='sshleifer/tiny-t5', framework='pt')
+_summarizer = None
+
+def _get_summarizer():
+    global _summarizer
+    if _summarizer is None:
+        _summarizer = pipeline('summarization', model='sshleifer/tiny-t5', framework='pt')
+    return _summarizer
 
 def _write_pdf(text: str, out_path: str) -> None:
     c = canvas.Canvas(out_path, pagesize=letter)
@@ -33,7 +39,7 @@ def generate_docs(code: str) -> Tuple[str, str]:
 
     # Summarize code using tiny model for speed
     text = code[:4000]
-    summary = _summarizer(text, max_length=128, min_length=32, do_sample=False)[0]['summary_text']
+    summary = _get_summarizer()(text, max_length=128, min_length=32, do_sample=False)[0]['summary_text']
 
     md = f"""
 # Auto-Generated Documentation

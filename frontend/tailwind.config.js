@@ -10,6 +10,36 @@ module.exports = {
     extend: {
       // CloudForge AI Brand Colors
       colors: {
+        // Semantic colors (CSS variable-driven)
+        border: 'hsl(var(--border))',
+        input: 'hsl(var(--input))',
+        ring: 'hsl(var(--ring))',
+        background: 'hsl(var(--background))',
+        foreground: 'hsl(var(--foreground))',
+        primary: {
+          DEFAULT: 'hsl(var(--primary))',
+          foreground: 'hsl(var(--primary-foreground))',
+        },
+        secondary: {
+          DEFAULT: 'hsl(var(--secondary))',
+          foreground: 'hsl(var(--secondary-foreground))',
+        },
+        destructive: {
+          DEFAULT: 'hsl(var(--destructive))',
+          foreground: 'hsl(var(--destructive-foreground))',
+        },
+        muted: {
+          DEFAULT: 'hsl(var(--muted))',
+          foreground: 'hsl(var(--muted-foreground))',
+        },
+        accent: {
+          DEFAULT: 'hsl(var(--accent))',
+          foreground: 'hsl(var(--accent-foreground))',
+        },
+        card: {
+          DEFAULT: 'hsl(var(--card))',
+          foreground: 'hsl(var(--card-foreground))',
+        },
         // Primary brand colors
         primary: {
           50: '#eff6ff',
@@ -259,127 +289,9 @@ module.exports = {
     },
   },
   plugins: [
-    require('@tailwindcss/forms')({
-      strategy: 'class',
-    }),
+    require('@tailwindcss/forms')({ strategy: 'class' }),
     require('@tailwindcss/typography'),
     require('@tailwindcss/aspect-ratio'),
-    require('@tailwindcss/container-queries'),
-    // Custom plugin for utilities
-    function({ addUtilities, addComponents, theme }) {
-      // Custom utilities
-      const newUtilities = {
-        '.text-shadow': {
-          textShadow: '0 2px 4px rgba(0,0,0,0.10)',
-        },
-        '.text-shadow-md': {
-          textShadow: '0 4px 8px rgba(0,0,0,0.12), 0 2px 4px rgba(0,0,0,0.08)',
-        },
-        '.text-shadow-lg': {
-          textShadow: '0 15px 35px rgba(0,0,0,0.1), 0 5px 15px rgba(0,0,0,0.07)',
-        },
-        '.text-shadow-none': {
-          textShadow: 'none',
-        },
-        '.scrollbar-hide': {
-          '-ms-overflow-style': 'none',
-          'scrollbar-width': 'none',
-          '&::-webkit-scrollbar': {
-            display: 'none',
-          },
-        },
-        '.scrollbar-thin': {
-          'scrollbar-width': 'thin',
-          '&::-webkit-scrollbar': {
-            width: '4px',
-            height: '4px',
-          },
-          '&::-webkit-scrollbar-track': {
-            background: theme('colors.gray.100'),
-          },
-          '&::-webkit-scrollbar-thumb': {
-            background: theme('colors.gray.400'),
-            borderRadius: '2px',
-          },
-          '&::-webkit-scrollbar-thumb:hover': {
-            background: theme('colors.gray.500'),
-          },
-        },
-      };
-
-      // Custom components
-      const newComponents = {
-        '.btn': {
-          padding: `${theme('spacing.2')} ${theme('spacing.4')}`,
-          borderRadius: theme('borderRadius.md'),
-          fontWeight: theme('fontWeight.medium'),
-          fontSize: theme('fontSize.sm'),
-          lineHeight: theme('lineHeight.5'),
-          transition: 'all 0.2s ease-in-out',
-          cursor: 'pointer',
-          display: 'inline-flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: theme('spacing.2'),
-          '&:focus': {
-            outline: 'none',
-            boxShadow: theme('boxShadow.outline-primary'),
-          },
-          '&:disabled': {
-            opacity: '0.5',
-            cursor: 'not-allowed',
-          },
-        },
-        '.btn-primary': {
-          backgroundColor: theme('colors.primary.600'),
-          color: theme('colors.white'),
-          '&:hover': {
-            backgroundColor: theme('colors.primary.700'),
-          },
-          '&:active': {
-            backgroundColor: theme('colors.primary.800'),
-          },
-        },
-        '.btn-secondary': {
-          backgroundColor: theme('colors.secondary.600'),
-          color: theme('colors.white'),
-          '&:hover': {
-            backgroundColor: theme('colors.secondary.700'),
-          },
-          '&:active': {
-            backgroundColor: theme('colors.secondary.800'),
-          },
-        },
-        '.btn-outline': {
-          backgroundColor: 'transparent',
-          color: theme('colors.primary.600'),
-          border: `1px solid ${theme('colors.primary.600')}`,
-          '&:hover': {
-            backgroundColor: theme('colors.primary.50'),
-          },
-          '&:active': {
-            backgroundColor: theme('colors.primary.100'),
-          },
-        },
-        '.card': {
-          backgroundColor: theme('colors.white'),
-          borderRadius: theme('borderRadius.lg'),
-          boxShadow: theme('boxShadow.sm'),
-          border: `1px solid ${theme('colors.gray.200')}`,
-          padding: theme('spacing.6'),
-        },
-        '.card-hover': {
-          transition: 'all 0.2s ease-in-out',
-          '&:hover': {
-            boxShadow: theme('boxShadow.md'),
-            transform: 'translateY(-2px)',
-          },
-        },
-      };
-
-      addUtilities(newUtilities);
-      addComponents(newComponents);
-    },
   ],
   darkMode: 'class',
 };

@@ -1,8 +1,14 @@
 from transformers import pipeline
 from typing import Dict
 
-# Use small model for CPU/Memory efficiency
-_analyzer = pipeline('text-generation', model='distilgpt2', framework='pt', device=-1)
+# Lazy singleton to avoid blocking startup
+_analyzer = None
+
+def _get_analyzer():
+    global _analyzer
+    if _analyzer is None:
+        _analyzer = pipeline('text-generation', model='distilgpt2', framework='pt', device=-1)
+    return _analyzer
 
 PROMPT = (
     "You are a database expert. Given a SQL CREATE TABLE schema, suggest migration steps, indexes, and data type adjustments.\n"
@@ -14,7 +20,7 @@ def analyze_schema(schema_sql: str) -> Dict:
     if not schema_sql:
         return {"steps": [], "indexes": [], "risks": ["empty schema"]}
     prompt = PROMPT.format(schema=schema_sql[:4000])
-    out = _analyzer(prompt, max_new_tokens=120, do_sample=False)[0]['generated_text']
+    out = _get_analyzer()(prompt, max_new_tokens=120, do_sample=False)[0]['generated_text']
     # naive post-process: extract bullet-like suggestions
     steps = []
     indexes = []

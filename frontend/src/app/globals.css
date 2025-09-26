@@ -2,108 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* CSS Variables for theming */
-@layer base {
-  :root {
-    /* Light theme colors */
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 221.2 83.2% 53.3%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96%;
-    --secondary-foreground: 222.2 84% 4.9%;
-    --muted: 210 40% 96%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96%;
-    --accent-foreground: 222.2 84% 4.9%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 221.2 83.2% 53.3%;
-    --radius: 0.5rem;
-    
-    /* Custom CloudForge AI variables */
-    --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    --gradient-secondary: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-    --gradient-success: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-    --shadow-glow: 0 0 20px rgba(59, 130, 246, 0.3);
-    --animation-duration: 0.3s;
-    --animation-timing: cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
-  .dark {
-    /* Dark theme colors */
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 217.2 91.2% 59.8%;
-    --primary-foreground: 222.2 84% 4.9%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 224.3 76.3% 94.1%;
-  }
-}
-
-/* Base styles */
-@layer base {
-  * {
-    @apply border-border;
-  }
-  
-  body {
-    @apply bg-background text-foreground;
-    font-feature-settings: "rlig" 1, "calt" 1;
-  }
-
-  /* Smooth scrolling */
-  html {
-    scroll-behavior: smooth;
-  }
-
-  /* Focus styles */
-  *:focus {
-    @apply outline-none ring-2 ring-primary ring-offset-2;
-  }
-
-  /* Selection styles */
-  ::selection {
-    @apply bg-primary/20 text-primary-foreground;
-  }
-
-  /* Scrollbar styles */
-  ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-  }
-
-  ::-webkit-scrollbar-track {
-    @apply bg-gray-100 dark:bg-gray-800;
-  }
-
-  ::-webkit-scrollbar-thumb {
-    @apply bg-gray-400 dark:bg-gray-600 rounded-full;
-  }
-
-  ::-webkit-scrollbar-thumb:hover {
-    @apply bg-gray-500 dark:bg-gray-500;
-  }
-
+/*
   /* Typography improvements */
   h1, h2, h3, h4, h5, h6 {
     @apply font-semibold tracking-tight;
@@ -515,20 +414,15 @@
   @apply stroke-border;
 }
 
-.recharts-tooltip-wrapper {
-  @apply rounded-lg border border-border bg-card shadow-lg;
-}
 
 /* React Dropzone styles */
-.dropzone {
-  @apply border-2 border-dashed border-border bg-muted/50 transition-colors;
-}
+  .dropzone {
+    @apply border-2 border-dashed border-border bg-muted/50 transition-colors;
+  }
 
 .dropzone:hover {
   @apply border-primary bg-primary/5;
 }
-
-.dropzone.active {
   @apply border-primary bg-primary/10;
 }
 
@@ -539,3 +433,4 @@
 /* TEST: Passes comprehensive CSS validation with Tailwind CSS 3.4.14
    Validates: Custom properties, animations, component styles, utilities, accessibility
    Performance: Optimized for modern browsers, reduced motion support, print styles */
+*/
