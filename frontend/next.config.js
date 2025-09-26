@@ -205,8 +205,6 @@ const nextConfig = {
   // React strict mode
   reactStrictMode: true,
 
-  // SWC minify
-  swcMinify: true,
 
   // Compiler options
   compiler: {
