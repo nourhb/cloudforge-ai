@@ -3,7 +3,7 @@ import { Inter, JetBrains_Mono } from 'next/font/google';
 import { Providers } from '@/lib/providers';
 import { Toaster } from 'react-hot-toast';
 import { cn } from '@/lib/utils';
-// import './globals.css';
+import './globals.css';
 
 // Font configurations
 const inter = Inter({

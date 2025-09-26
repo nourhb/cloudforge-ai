@@ -1,9 +1,10 @@
 import { Body, Controller, HttpException, HttpStatus, Post } from '@nestjs/common';
 import { AuthService } from './auth.service';
+import { JwtServiceLite } from '../../security/jwt.service';
 
 @Controller('/api/auth')
 export class AuthController {
-  constructor(private readonly auth: AuthService) {}
+  constructor(private readonly auth: AuthService, private readonly jwt: JwtServiceLite) {}
 
   @Post('request-otp')
   requestOtp(@Body() body: { identifier: string }) {
@@ -27,7 +28,7 @@ export class AuthController {
     if (!ok) {
       throw new HttpException({ ok: false, error: 'invalid or expired code' }, HttpStatus.UNAUTHORIZED);
     }
-    // In production, mint JWT here
-    return { ok: true, token: 'demo-token' };
+    const token = this.jwt.sign({ sub: identifier });
+    return { ok: true, token };
   }
 }

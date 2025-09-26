@@ -38,6 +38,88 @@ CloudForge AI is a cutting-edge, cloud-agnostic platform that automates the enti
 9. **💾 Distributed Storage**: MinIO with replication and encryption
 10. **🎓 Onboarding**: Interactive training module for users
 
+## ✅ Local Run (Verified)
+
+The following steps are verified to work locally on Windows PowerShell. Default ports:
+
+- AI (Flask): 5001
+- Backend (Nest.js): 4000
+- Frontend (Next.js): 3002
+
+1) Start AI Service (Flask)
+
+```powershell
+cd ai-scripts
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+$env:AI_PORT="5001"; python app.py
+```
+
+Verify:
+
+- GET http://localhost:5001/health
+- GET http://localhost:5001/metrics
+- POST http://localhost:5001/ai/iac/generate with body: {"prompt":"Expose backend as ClusterIP on port 4000"}
+
+2) Start Backend (Nest.js)
+
+```powershell
+cd backend
+npm ci
+$env:AI_URL="http://127.0.0.1:5001"; npm run start:dev
+```
+
+Verify:
+
+- GET http://localhost:4000/health
+- GET http://localhost:4000/metrics
+- POST http://localhost:4000/api/iac/generate (same body as above)
+- GET http://localhost:4000/api/marketplace/list
+- POST http://localhost:4000/api/marketplace/upload (multipart: file, name, runtime)
+- OTP demo:
+  - POST http://localhost:4000/api/auth/request-otp {"identifier":"you@example.com"}
+  - POST http://localhost:4000/api/auth/verify {"identifier":"you@example.com","code":"<from previous>"}
+
+3) Start Frontend (Next.js)
+
+```powershell
+cd frontend
+npm ci
+npm run dev
+```
+
+Open:
+
+- http://localhost:3002/marketplace
+- http://localhost:3002/iac
+- http://localhost:3002/auth/login
+
+4) Tests
+
+```powershell
+# Backend e2e
+cd backend
+npm run test:e2e -- --runInBand
+
+# Frontend Cypress (headless)
+cd ../frontend
+npx cypress run
+```
+
+5) Production Builds
+
+```powershell
+cd backend && npm run build
+cd ../frontend && npm run build
+```
+
+Notes:
+
+- Tailwind is enabled via minimal stylesheet `frontend/src/app/tw.css` to guarantee clean builds. The original `globals.css` is preserved and can be re-enabled incrementally.
+- Frontend uses `NEXT_PUBLIC_API_URL` if you need a non-default backend address (defaults to http://localhost:4000).
+
+---
+
 ## 🛠️ Quick Start
 
 ### Prerequisites

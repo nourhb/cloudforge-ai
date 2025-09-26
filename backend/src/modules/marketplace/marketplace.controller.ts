@@ -1,10 +1,11 @@
-import { Controller, Get, Post, UploadedFile, UseInterceptors, Body, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Post, UploadedFile, UseInterceptors, Body, BadRequestException, UseGuards } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import * as path from 'path';
 import * as fs from 'fs';
 import type { Request } from 'express';
 import { MarketplaceService } from './marketplace.service';
+import { JwtAuthGuard } from '../../security/jwt.guard';
 
 @Controller('/api/marketplace')
 export class MarketplaceController {
@@ -16,6 +17,7 @@ export class MarketplaceController {
   }
 
   @Post('upload')
+  @UseGuards(JwtAuthGuard)
   @UseInterceptors(
     FileInterceptor('file', {
       storage: diskStorage({

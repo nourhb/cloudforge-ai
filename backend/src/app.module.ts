@@ -8,11 +8,12 @@ import { IacController } from './modules/iac/iac.controller';
 import { AuthController } from './modules/auth/auth.controller';
 import { AuthService } from './modules/auth/auth.service';
 import { MetricsController } from './metrics/metrics.controller';
+import { JwtServiceLite } from './security/jwt.service';
 
 @Module({
   imports: [],
   controllers: [HealthController, MigrationController, MarketplaceController, IacController, AuthController, MetricsController],
-  providers: [MigrationService, MarketplaceService, AuthService],
+  providers: [MigrationService, MarketplaceService, AuthService, JwtServiceLite],
 })
 export class AppModule {}
 

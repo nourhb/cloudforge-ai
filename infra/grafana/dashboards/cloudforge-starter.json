@@ -1,0 +1,46 @@
+{
+  "id": null,
+  "uid": "cloudforge-starter",
+  "title": "CloudForge Starter",
+  "tags": ["cloudforge", "starter"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Backend Up",
+      "gridPos": { "x": 0, "y": 0, "w": 6, "h": 4 },
+      "targets": [
+        { "expr": "app_up", "legendFormat": "backend up" }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "AI Up",
+      "gridPos": { "x": 6, "y": 0, "w": 6, "h": 4 },
+      "targets": [
+        { "expr": "ai_up", "legendFormat": "ai up" }
+      ]
+    },
+    {
+      "type": "graph",
+      "title": "Requests Total",
+      "gridPos": { "x": 0, "y": 4, "w": 12, "h": 8 },
+      "targets": [
+        { "expr": "app_request_total", "legendFormat": "backend" },
+        { "expr": "ai_requests_total", "legendFormat": "ai" }
+      ]
+    },
+    {
+      "type": "graph",
+      "title": "Uptime Seconds",
+      "gridPos": { "x": 0, "y": 12, "w": 12, "h": 8 },
+      "targets": [
+        { "expr": "app_uptime_seconds", "legendFormat": "backend" },
+        { "expr": "ai_uptime_seconds", "legendFormat": "ai" }
+      ]
+    }
+  ]
+}

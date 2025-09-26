@@ -38,6 +38,22 @@ def health():
         "port": int(os.getenv('AI_PORT', '5001')),
     })
 
+@app.route('/', methods=['GET'])
+def index():
+    return jsonify({
+        "service": "ai-scripts",
+        "status": "ok",
+        "endpoints": {
+            "health": "/health",
+            "metrics": "/metrics",
+            "iac_generate": "/ai/iac/generate",
+        }
+    })
+
+@app.route('/home', methods=['GET'])
+def home():
+    return index()
+
 @app.get('/metrics')
 def metrics():
     # Minimal Prometheus exposition format for AI service
@@ -131,6 +147,6 @@ if __name__ == '__main__':
     except Exception:
         pass
     port = int(os.getenv('AI_PORT', '5001'))
-    app.run(host='0.0.0.0', port=port)
+    app.run(host='0.0.0.0', port=port, debug=False, use_reloader=False)
 
 # TEST: Flask app serves /health and AI endpoints on Python 3.12.6

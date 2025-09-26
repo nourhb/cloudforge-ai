@@ -17,6 +17,11 @@ export function WorkerUpload() {
       setMessage('Please choose a file');
       return;
     }
+    const token = typeof window !== 'undefined' ? localStorage.getItem('cf_jwt') : null;
+    if (!token) {
+      setMessage('You must login first (OTP) to upload.');
+      return;
+    }
     setLoading(true);
     setMessage(null);
     try {
@@ -26,6 +31,9 @@ export function WorkerUpload() {
       form.append('runtime', runtime);
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/marketplace/upload`, {
         method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
         body: form,
       });
       const data = await res.json();
