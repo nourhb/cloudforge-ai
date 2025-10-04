@@ -1,0 +1,124 @@
+{
+  "dataset_name": "network_intrusion",
+  "analysis_timestamp": "2025-10-03T20:19:34.889761",
+  "total_points": 8,
+  "anomalies_detected": 1,
+  "anomaly_rate": 0.125,
+  "anomaly_points": [
+    {
+      "timestamp": "2025-10-03T20:19:34.863673",
+      "index": 7,
+      "value": 0.0,
+      "anomaly_score": 0.0,
+      "feature_contributions": {
+        "duration": 0.0,
+        "protocol_type": 2.0,
+        "service": 2.4,
+        "src_bytes": 7.783018867924528,
+        "dst_bytes": 0.3103285942943226,
+        "count": 7.921875,
+        "srv_count": 1016.0,
+        "same_srv_rate": 0.0,
+        "diff_srv_rate": 0.0
+      },
+      "severity": "low",
+      "anomaly_type": "point",
+      "explanation": "This anomaly indicates",
+      "suggested_action": "Investigate network_intrusion anomaly and take appropriate action based on impact assessment."
+    }
+  ],
+  "summary_statistics": {
+    "total_samples": 8,
+    "anomaly_count": 1,
+    "anomaly_percentage": 12.5,
+    "feature_statistics": {
+      "duration": {
+        "mean_normal": 5.285714285714286,
+        "mean_anomaly": 1.0,
+        "std_normal": 10.919619738713214,
+        "std_anomaly": NaN,
+        "min_value": 0.0,
+        "max_value": 30.0
+      },
+      "protocol_type": {
+        "mean_normal": 1.0,
+        "mean_anomaly": 3.0,
+        "std_normal": 0.0,
+        "std_anomaly": NaN,
+        "min_value": 1.0,
+        "max_value": 3.0
+      },
+      "service": {
+        "mean_normal": 1.4285714285714286,
+        "mean_anomaly": 4.0,
+        "std_normal": 0.7867957924694432,
+        "std_anomaly": NaN,
+        "min_value": 1.0,
+        "max_value": 4.0
+      },
+      "src_bytes": {
+        "mean_normal": 152.85714285714286,
+        "mean_anomaly": 1032.0,
+        "std_normal": 99.26635645479048,
+        "std_anomaly": NaN,
+        "min_value": 0.0,
+        "max_value": 1032.0
+      },
+      "dst_bytes": {
+        "mean_normal": 7612.142857142857,
+        "mean_anomaly": 0.0,
+        "std_normal": 16595.927898419053,
+        "std_anomaly": NaN,
+        "min_value": 0.0,
+        "max_value": 45076.0
+      },
+      "count": {
+        "mean_normal": 18.857142857142858,
+        "mean_anomaly": 255.0,
+        "std_normal": 45.929034286344304,
+        "std_anomaly": NaN,
+        "min_value": 1.0,
+        "max_value": 255.0
+      },
+      "srv_count": {
+        "mean_normal": 1.1428571428571428,
+        "mean_anomaly": 255.0,
+        "std_normal": 0.3779644730092273,
+        "std_anomaly": NaN,
+        "min_value": 1.0,
+        "max_value": 255.0
+      },
+      "same_srv_rate": {
+        "mean_normal": 0.7614285714285715,
+        "mean_anomaly": 1.0,
+        "std_normal": 0.41842675868179413,
+        "std_anomaly": NaN,
+        "min_value": 0.0,
+        "max_value": 1.0
+      },
+      "diff_srv_rate": {
+        "mean_normal": 0.23857142857142857,
+        "mean_anomaly": 0.0,
+        "std_normal": 0.41842675868179413,
+        "std_anomaly": NaN,
+        "min_value": 0.0,
+        "max_value": 1.0
+      }
+    }
+  },
+  "model_performance": {
+    "precision": 1.0,
+    "recall": 0.3333333333333333,
+    "f1_score": 0.5,
+    "accuracy": 0.75
+  },
+  "recommendations": [
+    "Model may be missing anomalies - consider more sensitive parameters",
+    "Monitor protocol_type closely - involved in 1 anomalies",
+    "Monitor service closely - involved in 1 anomalies",
+    "Monitor src_bytes closely - involved in 1 anomalies",
+    "Monitor count closely - involved in 1 anomalies",
+    "Monitor srv_count closely - involved in 1 anomalies"
+  ],
+  "risk_assessment": "Critical - 0 critical anomalies, 12.5% anomaly rate"
+}

@@ -1,47 +1,204 @@
-replicaCount:
-  frontend: 1
-  backend: 1
+# CloudForge AI Helm Chart Values
+# Global configuration
+global:
+  imageRegistry: ""
+  imagePullSecrets: []
+  storageClass: ""
 
-image:
-  repository:
-    frontend: ghcr.io/your-org/cloudforge-ai/frontend
-    backend: ghcr.io/your-org/cloudforge-ai/backend
-  tag: latest
-  pullPolicy: IfNotPresent
+# Application configuration
+app:
+  name: cloudforge-ai
+  version: "2.0.0"
+  environment: production
 
-service:
-  frontend:
-    type: ClusterIP
-    port: 3000
-  backend:
+# Frontend configuration (Next.js)
+frontend:
+  enabled: true
+  replicaCount: 2
+  image:
+    repository: cloudforge-ai/frontend
+    tag: "2.0.0"
+    pullPolicy: IfNotPresent
+  service:
+    type: LoadBalancer
+    port: 80
+    targetPort: 3000
+  ingress:
+    enabled: true
+    className: "nginx"
+    annotations:
+      nginx.ingress.kubernetes.io/rewrite-target: /
+      cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    hosts:
+      - host: cloudforge-ai.com
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - secretName: cloudforge-ai-tls
+        hosts:
+          - cloudforge-ai.com
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+
+# Backend configuration (Nest.js)
+backend:
+  enabled: true
+  replicaCount: 3
+  image:
+    repository: cloudforge-ai/backend
+    tag: "2.0.0"
+    pullPolicy: IfNotPresent
+  service:
     type: ClusterIP
     port: 4000
-
-resources:
-  frontend:
+    targetPort: 4000
+  env:
+    NODE_ENV: production
+    DATABASE_URL: "postgresql://cloudforge:password@postgresql:5432/cloudforge"
+    REDIS_URL: "redis://redis:6379"
+    AI_SERVICE_URL: "http://ai-services:5001"
+    MINIO_ENDPOINT: "minio:9000"
+    MINIO_ACCESS_KEY: "minioadmin"
+    MINIO_SECRET_KEY: "minioadmin"
+  resources:
     limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
       cpu: 500m
       memory: 512Mi
-    requests:
-      cpu: 100m
-      memory: 128Mi
-  backend:
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 15
+    targetCPUUtilizationPercentage: 70
+
+# AI Services configuration (Python/Flask)
+aiServices:
+  enabled: true
+  replicaCount: 2
+  image:
+    repository: cloudforge-ai/ai-services
+    tag: "2.0.0"
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 5001
+    targetPort: 5001
+  env:
+    FLASK_ENV: production
+    MODEL_CACHE_SIZE: "2GB"
+    TRANSFORMERS_CACHE: "/app/model_cache"
+  resources:
     limits:
-      cpu: 500m
-      memory: 512Mi
+      cpu: 2000m
+      memory: 4Gi
     requests:
-      cpu: 100m
-      memory: 128Mi
+      cpu: 1000m
+      memory: 2Gi
+  persistence:
+    enabled: true
+    size: 10Gi
+    storageClass: "fast-ssd"
 
-ingress:
-  enabled: false
-  className: ""
-  annotations: {}
-  hosts:
-    - host: cloudforge.local
-      paths:
-        - path: /
-          pathType: Prefix
-  tls: []
+# PostgreSQL configuration
+postgresql:
+  enabled: true
+  auth:
+    postgresPassword: "cloudforge-admin-password"
+    username: "cloudforge"
+    password: "cloudforge-user-password"
+    database: "cloudforge"
+  primary:
+    persistence:
+      enabled: true
+      size: 50Gi
+      storageClass: "fast-ssd"
+    resources:
+      limits:
+        cpu: 1000m
+        memory: 2Gi
+      requests:
+        cpu: 500m
+        memory: 1Gi
 
-# TEST: values.yaml usable for helm install
+# Redis configuration
+redis:
+  enabled: true
+  auth:
+    enabled: true
+    password: "redis-password"
+  master:
+    persistence:
+      enabled: true
+      size: 10Gi
+    resources:
+      limits:
+        cpu: 500m
+        memory: 1Gi
+      requests:
+        cpu: 250m
+        memory: 512Mi
+
+# MinIO configuration
+minio:
+  enabled: true
+  auth:
+    rootUser: minioadmin
+    rootPassword: minioadmin123
+  defaultBuckets: "cloudforge-uploads,cloudforge-backups,cloudforge-artifacts"
+  persistence:
+    enabled: true
+    size: 100Gi
+    storageClass: "standard"
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 2Gi
+    requests:
+      cpu: 500m
+      memory: 1Gi
+
+# Monitoring configuration
+monitoring:
+  enabled: true
+  prometheus:
+    enabled: true
+    retention: "15d"
+    storageSize: "20Gi"
+  grafana:
+    enabled: true
+    adminPassword: "grafana-admin"
+    persistence:
+      enabled: true
+      size: "5Gi"
+
+# Security configuration
+security:
+  networkPolicies:
+    enabled: true
+  podSecurityPolicy:
+    enabled: true
+  rbac:
+    create: true
+
+# Backup configuration
+backup:
+  enabled: true
+  schedule: "0 2 * * *"  # Daily at 2 AM
+  retention: "30d"
+  storage:
+    size: "200Gi"
+    storageClass: "standard"

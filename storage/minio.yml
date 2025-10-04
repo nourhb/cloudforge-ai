@@ -1,0 +1,295 @@
+# MinIO Distributed Storage Configuration for CloudForge AI
+# 4-node cluster with replication and server-side encryption
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: minio-system
+---
+# MinIO Secret for credentials
+apiVersion: v1
+kind: Secret
+metadata:
+  name: minio-secret
+  namespace: minio-system
+type: Opaque
+data:
+  # Base64 encoded credentials
+  # username: cloudforge-admin (Y2xvdWRmb3JnZS1hZG1pbg==)
+  # password: CloudForge2025! (Q2xvdWRGb3JnZTIwMjUh)
+  username: Y2xvdWRmb3JnZS1hZG1pbg==
+  password: Q2xvdWRGb3JnZTIwMjUh
+---
+# MinIO ConfigMap for server-side encryption
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: minio-config
+  namespace: minio-system
+data:
+  # Server-side encryption configuration
+  encryption.json: |
+    {
+      "Rules": [
+        {
+          "Filter": {
+            "And": {
+              "Prefix": "documents/",
+              "Tag": {
+                "Key": "encryption",
+                "Value": "required"
+              }
+            }
+          },
+          "Status": "Enabled",
+          "Priority": 1,
+          "DeleteMarkerReplication": {
+            "Status": "Enabled"
+          },
+          "Prefix": "documents/",
+          "Destination": {
+            "Bucket": "cloudforge-backup",
+            "StorageClass": "STANDARD_IA",
+            "EncryptionConfiguration": {
+              "ReplicaKmsKeyID": "cloudforge-kms-key"
+            }
+          }
+        }
+      ]
+    }
+  # MinIO server configuration
+  config.env: |
+    export MINIO_ROOT_USER=cloudforge-admin
+    export MINIO_ROOT_PASSWORD=CloudForge2025!
+    export MINIO_BROWSER=on
+    export MINIO_DOMAIN=storage.cloudforge.local
+    export MINIO_SERVER_URL=https://storage.cloudforge.local
+    export MINIO_BROWSER_REDIRECT_URL=https://console.cloudforge.local
+    # Enable server-side encryption
+    export MINIO_KMS_AUTO_ENCRYPTION=on
+    export MINIO_KMS_SECRET_KEY=cloudforge-kms-key:K7mtraulWVKBsQqjbfpqd0jZz1w2TwSrsQkqhk+5qnw=
+    # Distributed configuration
+    export MINIO_DISTRIBUTED_MODE_ENABLED=on
+    export MINIO_DISTRIBUTED_NODES=4
+---
+# MinIO Headless Service for inter-pod communication
+apiVersion: v1
+kind: Service
+metadata:
+  name: minio-headless
+  namespace: minio-system
+spec:
+  clusterIP: None
+  ports:
+    - port: 9000
+      name: minio-api
+    - port: 9001
+      name: minio-console
+  selector:
+    app: minio
+---
+# MinIO Public Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: minio-service
+  namespace: minio-system
+spec:
+  type: LoadBalancer
+  ports:
+    - port: 9000
+      targetPort: 9000
+      name: minio-api
+      nodePort: 30900
+    - port: 9001
+      targetPort: 9001
+      name: minio-console
+      nodePort: 30901
+  selector:
+    app: minio
+---
+# MinIO StatefulSet - 4 node distributed cluster
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: minio
+  namespace: minio-system
+spec:
+  serviceName: minio-headless
+  replicas: 4
+  selector:
+    matchLabels:
+      app: minio
+  template:
+    metadata:
+      labels:
+        app: minio
+    spec:
+      containers:
+      - name: minio
+        image: minio/minio:RELEASE.2025-10-01T00-00-00Z
+        args:
+          - server
+          - --console-address
+          - ":9001"
+          - http://minio-{0...3}.minio-headless.minio-system.svc.cluster.local/data
+        ports:
+        - containerPort: 9000
+          name: minio-api
+        - containerPort: 9001
+          name: minio-console
+        env:
+        - name: MINIO_ROOT_USER
+          valueFrom:
+            secretKeyRef:
+              name: minio-secret
+              key: username
+        - name: MINIO_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: minio-secret
+              key: password
+        - name: MINIO_DISTRIBUTED_MODE_ENABLED
+          value: "on"
+        - name: MINIO_DISTRIBUTED_NODES
+          value: "4"
+        # Server-side encryption settings
+        - name: MINIO_KMS_AUTO_ENCRYPTION
+          value: "on"
+        - name: MINIO_KMS_SECRET_KEY
+          value: "cloudforge-kms-key:K7mtraulWVKBsQqjbfpqd0jZz1w2TwSrsQkqhk+5qnw="
+        volumeMounts:
+        - name: storage
+          mountPath: /data
+        - name: config
+          mountPath: /etc/minio
+        livenessProbe:
+          httpGet:
+            path: /minio/health/live
+            port: 9000
+          initialDelaySeconds: 30
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /minio/health/ready
+            port: 9000
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+      volumes:
+      - name: config
+        configMap:
+          name: minio-config
+  volumeClaimTemplates:
+  - metadata:
+      name: storage
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      storageClassName: "fast-ssd"
+      resources:
+        requests:
+          storage: 50Gi
+---
+# MinIO Ingress for external access
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: minio-ingress
+  namespace: minio-system
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/proxy-body-size: "1024m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
+spec:
+  tls:
+  - hosts:
+    - storage.cloudforge.local
+    - console.cloudforge.local
+    secretName: minio-tls
+  rules:
+  - host: storage.cloudforge.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: minio-service
+            port:
+              number: 9000
+  - host: console.cloudforge.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: minio-service
+            port:
+              number: 9001
+---
+# MinIO Network Policy for security
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: minio-network-policy
+  namespace: minio-system
+spec:
+  podSelector:
+    matchLabels:
+      app: minio
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: cloudforge-backend
+    - namespaceSelector:
+        matchLabels:
+          name: cloudforge-ai
+    ports:
+    - protocol: TCP
+      port: 9000
+  - from: []
+    ports:
+    - protocol: TCP
+      port: 9001
+  egress:
+  - to:
+    - podSelector:
+        matchLabels:
+          app: minio
+    ports:
+    - protocol: TCP
+      port: 9000
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 53
+    - protocol: UDP
+      port: 53
+---
+# MinIO Storage Class for high-performance storage
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: fast-ssd
+provisioner: kubernetes.io/aws-ebs
+parameters:
+  type: gp3
+  iops: "3000"
+  throughput: "125"
+  encrypted: "true"
+allowVolumeExpansion: true
+reclaimPolicy: Retain
+volumeBindingMode: WaitForFirstConsumer

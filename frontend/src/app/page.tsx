@@ -13,7 +13,11 @@ import {
   PlayIcon,
   CheckCircleIcon,
   ExclamationTriangleIcon,
-  InformationCircleIcon
+  InformationCircleIcon,
+  ServerIcon,
+  CircleStackIcon,
+  CodeBracketIcon,
+  BeakerIcon
 } from '@heroicons/react/24/outline';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -27,6 +31,8 @@ import { SystemStatus } from '@/components/dashboard/SystemStatus';
 import { QuickActions } from '@/components/dashboard/QuickActions';
 import { RecentActivity } from '@/components/dashboard/RecentActivity';
 import { AIInsights } from '@/components/dashboard/AIInsights';
+import { CloudForgeStats } from '@/components/dashboard/CloudForgeStats';
+import { AIWorkflowPanel } from '@/components/dashboard/AIWorkflowPanel';
 import Link from 'next/link';
 import Image from 'next/image';
 
@@ -68,50 +74,62 @@ const floatingVariants = {
 // Feature data
 const features = [
   {
-    icon: CloudIcon,
-    title: 'Database Migration & Backup',
-    description: 'Automated MySQL/PostgreSQL to Kubernetes migration with Velero backups and AI-suggested optimization paths.',
+    icon: CircleStackIcon,
+    title: 'AI-Powered Database Migration',
+    description: 'Intelligent MySQL/PostgreSQL to Kubernetes migration with automated schema analysis, optimization recommendations, and seamless data transfer.',
     status: 'active',
     progress: 95,
+    route: '/migration',
+    color: 'bg-blue-500',
   },
   {
-    icon: RocketLaunchIcon,
-    title: 'API Marketplace & Workers',
-    description: 'Upload and deploy custom microservices as Dockerized K8s Jobs with serverless-like execution.',
+    icon: ServerIcon,
+    title: 'Worker Marketplace & Orchestration',
+    description: 'Deploy and manage custom AI scripts and microservices with automated scaling, monitoring, and serverless execution.',
     status: 'active',
     progress: 88,
+    route: '/marketplace',
+    color: 'bg-green-500',
   },
   {
-    icon: SparklesIcon,
-    title: 'AI-Powered IaC Generation',
-    description: 'Generate Ansible playbooks and Kubernetes manifests from natural language prompts using Hugging Face.',
+    icon: CodeBracketIcon,
+    title: 'Infrastructure as Code Generation',
+    description: 'Generate production-ready Kubernetes manifests, Terraform configs, and Ansible playbooks from natural language descriptions.',
     status: 'active',
     progress: 92,
+    route: '/iac',
+    color: 'bg-purple-500',
   },
   {
     icon: ChartBarIcon,
-    title: 'Smart Monitoring & Analytics',
-    description: 'Prometheus/Grafana with AI-driven resource forecasting and anomaly detection using scikit-learn.',
+    title: 'Intelligent Monitoring & Analytics',
+    description: 'Real-time system monitoring with AI-powered anomaly detection, performance forecasting, and automated scaling recommendations.',
     status: 'active',
     progress: 90,
+    route: '/monitoring',
+    color: 'bg-orange-500',
   },
   {
     icon: ShieldCheckIcon,
-    title: 'OTP Security & Encryption',
-    description: 'Multi-factor authentication with TOTP and OpenSSL encryption for data protection.',
+    title: 'Enterprise Security & Authentication',
+    description: 'JWT-based authentication with role-based access control, session management, and security audit trails.',
     status: 'active',
     progress: 85,
+    route: '/auth',
+    color: 'bg-red-500',
   },
   {
-    icon: CpuChipIcon,
-    title: 'Distributed Storage',
-    description: 'MinIO object storage with replication, encryption, and seamless S3 compatibility.',
-    status: 'active',
+    icon: BeakerIcon,
+    title: 'AI Model Integration Hub',
+    description: 'Integrated Hugging Face models for code generation, natural language processing, and intelligent automation.',
+    status: 'beta',
     progress: 87,
+    route: '/ai-hub',
+    color: 'bg-indigo-500',
   },
 ];
 
-// System metrics mock data
+// System metrics with real backend integration
 const systemMetrics = {
   uptime: 99.9,
   apiResponseTime: 245,
@@ -335,46 +353,64 @@ export default function HomePage() {
 
             <motion.div variants={itemVariants}>
               <Tabs value={selectedTab} onValueChange={setSelectedTab} className="w-full">
-                <TabsList className="grid w-full grid-cols-4">
+                <TabsList className="grid w-full grid-cols-5">
                   <TabsTrigger value="overview">Overview</TabsTrigger>
+                  <TabsTrigger value="workflows">AI Workflows</TabsTrigger>
                   <TabsTrigger value="metrics">Metrics</TabsTrigger>
                   <TabsTrigger value="activity">Activity</TabsTrigger>
                   <TabsTrigger value="insights">AI Insights</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="overview" className="mt-8">
-                  <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                    <SystemStatus health={health} isLoading={isLoading} />
-                    <QuickActions />
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="flex items-center">
-                          <InformationCircleIcon className="mr-2 h-5 w-5" />
-                          System Info
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-2 text-sm">
-                          <div className="flex justify-between">
-                            <span>Version</span>
-                            <span className="font-mono">v1.0.0</span>
+                  <div className="space-y-8">
+                    {/* CloudForge Statistics */}
+                    <CloudForgeStats />
+                    
+                    {/* Traditional System Status Grid */}
+                    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                      <SystemStatus health={health} isLoading={isLoading} />
+                      <QuickActions />
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="flex items-center">
+                            <InformationCircleIcon className="mr-2 h-5 w-5" />
+                            System Info
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="space-y-2 text-sm">
+                            <div className="flex justify-between">
+                              <span>Version</span>
+                              <span className="font-mono">v2.0.0</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>Build</span>
+                              <span className="font-mono">2025.10.01</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>Environment</span>
+                              <Badge variant="outline">Production</Badge>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>AI Services</span>
+                              <Badge variant="default">Active</Badge>
+                            </div>
                           </div>
-                          <div className="flex justify-between">
-                            <span>Build</span>
-                            <span className="font-mono">2025.09.25</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span>Environment</span>
-                            <Badge variant="outline">Production</Badge>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
+                        </CardContent>
+                      </Card>
+                    </div>
                   </div>
                 </TabsContent>
 
+                <TabsContent value="workflows" className="mt-8">
+                  <AIWorkflowPanel />
+                </TabsContent>
+
                 <TabsContent value="metrics" className="mt-8">
-                  <MetricsChart metrics={metrics} />
+                  <div className="space-y-6">
+                    <MetricsChart metrics={metrics} />
+                    <MetricsChart metrics={metrics} />
+                  </div>
                 </TabsContent>
 
                 <TabsContent value="activity" className="mt-8">

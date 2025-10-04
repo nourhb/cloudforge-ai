@@ -1,0 +1,298 @@
+\chapter{API Documentation}
+
+\section{RESTful API Reference}
+
+This appendix provides comprehensive documentation for all CloudForge AI RESTful API endpoints, including request/response formats, authentication requirements, and usage examples.
+
+\subsection{Authentication}
+
+All API endpoints require JWT-based authentication. Include the authorization header in all requests:
+
+\begin{verbatim}
+Authorization: Bearer <jwt_token>
+Content-Type: application/json
+\end{verbatim}
+
+\subsection{Forecasting Service API}
+
+\subsubsection{POST /api/v1/forecasting/predict}
+
+Generate resource demand forecasts based on historical data and external factors.
+
+\paragraph{Request Format:}
+\begin{verbatim}
+{
+  "timeframe": {
+    "start_date": "2025-01-01T00:00:00Z",
+    "end_date": "2025-01-31T23:59:59Z",
+    "granularity": "daily"
+  },
+  "metrics": ["cpu_usage", "memory_usage", "network_io"],
+  "confidence_level": 0.95,
+  "include_seasonality": true,
+  "external_factors": {
+    "business_events": [],
+    "market_conditions": "stable"
+  }
+}
+\end{verbatim}
+
+\paragraph{Response Format:}
+\begin{verbatim}
+{
+  "request_id": "req_12345",
+  "status": "success",
+  "predictions": {
+    "cpu_usage": {
+      "values": [65.2, 68.7, 72.1, ...],
+      "confidence_intervals": {
+        "lower": [58.3, 61.8, 65.2, ...],
+        "upper": [72.1, 75.6, 79.0, ...]
+      },
+      "accuracy_score": 0.823
+    }
+  },
+  "model_metadata": {
+    "ensemble_weights": {
+      "arima": 0.35,
+      "ridge": 0.25,
+      "random_forest": 0.40
+    },
+    "training_data_period": "2024-01-01 to 2024-12-31"
+  },
+  "processing_time_ms": 12.7
+}
+\end{verbatim}
+
+\subsubsection{GET /api/v1/forecasting/models}
+
+Retrieve information about available forecasting models and their current status.
+
+\paragraph{Response Format:}
+\begin{verbatim}
+{
+  "models": [
+    {
+      "name": "ensemble_forecaster_v3",
+      "status": "active",
+      "accuracy": 0.823,
+      "last_trained": "2025-10-01T08:00:00Z",
+      "algorithms": ["arima", "ridge", "random_forest"],
+      "supported_metrics": ["cpu", "memory", "storage", "network"]
+    }
+  ]
+}
+\end{verbatim}
+
+\subsection{Anomaly Detection Service API}
+
+\subsubsection{POST /api/v1/anomaly/detect}
+
+Perform real-time anomaly detection on infrastructure metrics.
+
+\paragraph{Request Format:}
+\begin{verbatim}
+{
+  "metrics": {
+    "cpu_usage": 89.5,
+    "memory_usage": 76.2,
+    "network_latency": 250.0,
+    "error_rate": 0.15
+  },
+  "context": {
+    "service_name": "api-gateway",
+    "environment": "production",
+    "region": "us-west-2"
+  },
+  "sensitivity": "medium"
+}
+\end{verbatim}
+
+\paragraph{Response Format:}
+\begin{verbatim}
+{
+  "anomalies_detected": true,
+  "alerts": [
+    {
+      "metric": "cpu_usage",
+      "severity": "high",
+      "anomaly_score": 0.89,
+      "algorithm": "isolation_forest",
+      "threshold": 0.75,
+      "probable_cause": "unusual_load_pattern",
+      "recommended_action": "investigate_traffic_spike"
+    }
+  ],
+  "detection_time_ms": 8.3
+}
+\end{verbatim}
+
+\subsection{Migration Analyzer Service API}
+
+\subsubsection{POST /api/v1/migration/analyze}
+
+Analyze database schema and generate migration recommendations.
+
+\paragraph{Request Format:}
+\begin{verbatim}
+{
+  "source_database": {
+    "type": "mysql",
+    "version": "8.0",
+    "schema": "CREATE TABLE users (id INT PRIMARY KEY, ...);"
+  },
+  "target_database": {
+    "type": "postgresql",
+    "version": "15.0"
+  },
+  "analysis_depth": "comprehensive",
+  "include_performance_estimates": true
+}
+\end{verbatim}
+
+\paragraph{Response Format:}
+\begin{verbatim}
+{
+  "migration_plan": {
+    "complexity_score": 0.72,
+    "estimated_duration": "4-6 hours",
+    "risk_level": "medium",
+    "steps": [
+      {
+        "order": 1,
+        "action": "schema_conversion",
+        "description": "Convert MySQL schema to PostgreSQL",
+        "estimated_time": "30 minutes",
+        "risk": "low"
+      }
+    ],
+    "compatibility_issues": [
+      {
+        "issue": "mysql_specific_functions",
+        "severity": "medium",
+        "solution": "Replace with PostgreSQL equivalents"
+      }
+    ]
+  },
+  "analysis_time_ms": 2847
+}
+\end{verbatim}
+
+\section{WebSocket API}
+
+For real-time data streaming and live updates.
+
+\subsection{Connection Endpoint}
+
+\begin{verbatim}
+wss://api.cloudforge-ai.com/ws/v1/realtime
+\end{verbatim}
+
+\subsection{Message Formats}
+
+\subsubsection{Subscribe to Metrics}
+\begin{verbatim}
+{
+  "action": "subscribe",
+  "channel": "metrics",
+  "filters": {
+    "services": ["api-gateway", "ai-services"],
+    "metrics": ["response_time", "error_rate"]
+  }
+}
+\end{verbatim}
+
+\subsubsection{Anomaly Alert}
+\begin{verbatim}
+{
+  "type": "anomaly_alert",
+  "timestamp": "2025-10-03T14:30:00Z",
+  "service": "forecasting-engine",
+  "metric": "response_time",
+  "value": 95.3,
+  "severity": "medium",
+  "anomaly_score": 0.78
+}
+\end{verbatim}
+
+\section{Error Codes and Handling}
+
+\subsection{Standard HTTP Status Codes}
+
+\begin{table}[H]
+\centering
+\caption{API Error Codes}
+\begin{tabular}{|p{2cm}|p{4cm}|p{6cm}|}
+\hline
+\textbf{Status Code} & \textbf{Meaning} & \textbf{Description} \\
+\hline
+200 & OK & Request successful \\
+\hline
+400 & Bad Request & Invalid request format or parameters \\
+\hline
+401 & Unauthorized & Authentication required or invalid \\
+\hline
+403 & Forbidden & Insufficient permissions \\
+\hline
+404 & Not Found & Resource not found \\
+\hline
+429 & Too Many Requests & Rate limit exceeded \\
+\hline
+500 & Internal Server Error & Server error occurred \\
+\hline
+503 & Service Unavailable & Service temporarily unavailable \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{Error Response Format}
+
+\begin{verbatim}
+{
+  "error": {
+    "code": "INVALID_PARAMETERS",
+    "message": "The specified timeframe is invalid",
+    "details": {
+      "field": "timeframe.end_date",
+      "issue": "Cannot be in the past"
+    },
+    "request_id": "req_12345",
+    "timestamp": "2025-10-03T14:30:00Z"
+  }
+}
+\end{verbatim}
+
+\section{Rate Limiting}
+
+API rate limits are enforced to ensure fair usage and system stability.
+
+\subsection{Rate Limit Headers}
+
+All API responses include rate limiting information:
+
+\begin{verbatim}
+X-RateLimit-Limit: 1000
+X-RateLimit-Remaining: 999
+X-RateLimit-Reset: 1633276800
+X-RateLimit-Window: 3600
+\end{verbatim}
+
+\subsection{Rate Limit Tiers}
+
+\begin{table}[H]
+\centering
+\caption{API Rate Limits by Tier}
+\begin{tabular}{|p{3cm}|p{3cm}|p{3cm}|p{3cm}|}
+\hline
+\textbf{Tier} & \textbf{Requests/Hour} & \textbf{Burst Limit} & \textbf{WebSocket Connections} \\
+\hline
+Free & 1,000 & 100 & 5 \\
+\hline
+Professional & 10,000 & 1,000 & 50 \\
+\hline
+Enterprise & 100,000 & 10,000 & 500 \\
+\hline
+Custom & Negotiated & Negotiated & Negotiated \\
+\hline
+\end{tabular}
+\end{table}

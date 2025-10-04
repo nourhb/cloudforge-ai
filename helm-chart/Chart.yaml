@@ -1,8 +1,35 @@
 apiVersion: v2
 name: cloudforge-ai
-version: 1.0.0
 description: CloudForge AI - Autonomous Cloud Management Platform
-appVersion: "1.0.0"
 type: application
+version: 2.0.0
+appVersion: "2.0.0"
+home: https://cloudforge-ai.com
+sources:
+  - https://github.com/cloudforge-ai/platform
+maintainers:
+  - name: CloudForge AI Team
+    email: support@cloudforge-ai.com
+keywords:
+  - cloud-management
+  - ai
+  - kubernetes
+  - database-migration
+  - devops
+dependencies:
+  - name: postgresql
+    version: 12.1.9
+    repository: https://charts.bitnami.com/bitnami
+    condition: postgresql.enabled
+  - name: redis
+    version: 17.3.7
+    repository: https://charts.bitnami.com/bitnami
+    condition: redis.enabled
+  - name: minio
+    version: 5.0.7
+    repository: https://charts.min.io/
+    condition: minio.enabled
+annotations:
+  category: Application
 
-# TEST: Helm Chart.yaml valid
+# TEST: Helm Chart.yaml valid and production-ready

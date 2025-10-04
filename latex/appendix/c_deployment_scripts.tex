@@ -1,0 +1,393 @@
+\chapter{Deployment Scripts}
+
+\section{CloudForge AI Deployment Automation}
+
+This appendix provides comprehensive deployment scripts and automation tools for deploying CloudForge AI across different environments.
+
+\subsection{Infrastructure as Code}
+
+\subsubsection{Terraform Main Configuration}
+
+\begin{lstlisting}[language=terraform]
+terraform {
+  required_version = ">= 1.0"
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+    kubernetes = {
+      source  = "hashicorp/kubernetes"
+      version = "~> 2.0"
+    }
+  }
+}
+
+provider "aws" {
+  region = var.aws_region
+}
+
+# EKS Cluster
+module "eks" {
+  source = "./modules/eks"
+  
+  cluster_name    = "${var.project_name}-cluster"
+  cluster_version = "1.28"
+  
+  vpc_id          = module.vpc.vpc_id
+  subnet_ids      = module.vpc.private_subnets
+  
+  node_groups = {
+    main = {
+      desired_capacity = 3
+      max_capacity     = 10
+      min_capacity     = 1
+      
+      instance_types = ["t3.large"]
+      
+      k8s_labels = {
+        Environment = var.environment
+        Application = "cloudforge-ai"
+      }
+    }
+  }
+}
+
+# RDS Database
+resource "aws_db_instance" "postgres" {
+  identifier = "${var.project_name}-postgres"
+  
+  engine         = "postgres"
+  engine_version = "15.3"
+  instance_class = "db.t3.medium"
+  
+  allocated_storage     = 100
+  max_allocated_storage = 1000
+  storage_encrypted     = true
+  
+  db_name  = "cloudforge"
+  username = var.db_username
+  password = var.db_password
+  
+  vpc_security_group_ids = [aws_security_group.rds.id]
+  db_subnet_group_name   = aws_db_subnet_group.postgres.name
+  
+  backup_retention_period = 7
+  backup_window          = "03:00-04:00"
+  maintenance_window     = "sun:04:00-sun:05:00"
+  
+  skip_final_snapshot = var.environment != "production"
+  
+  tags = {
+    Name        = "${var.project_name}-postgres"
+    Environment = var.environment
+  }
+}
+
+# ElastiCache Redis
+resource "aws_elasticache_subnet_group" "redis" {
+  name       = "${var.project_name}-redis-subnet-group"
+  subnet_ids = module.vpc.private_subnets
+}
+
+resource "aws_elasticache_replication_group" "redis" {
+  replication_group_id       = "${var.project_name}-redis"
+  description                = "CloudForge AI Redis cluster"
+  
+  node_type                  = "cache.t3.micro"
+  port                       = 6379
+  parameter_group_name       = "default.redis7"
+  
+  num_cache_clusters         = 2
+  automatic_failover_enabled = true
+  multi_az_enabled          = true
+  
+  subnet_group_name = aws_elasticache_subnet_group.redis.name
+  security_group_ids = [aws_security_group.redis.id]
+  
+  at_rest_encryption_enabled = true
+  transit_encryption_enabled = true
+  
+  tags = {
+    Name        = "${var.project_name}-redis"
+    Environment = var.environment
+  }
+}
+\end{lstlisting}
+
+\section{Kubernetes Deployment Scripts}
+
+\subsection{Helm Chart Deployment Script}
+
+\begin{lstlisting}[language=bash]
+#!/bin/bash
+
+set -e
+
+# Configuration
+NAMESPACE="cloudforge-ai"
+RELEASE_NAME="cloudforge"
+CHART_PATH="./helm-chart"
+ENVIRONMENT=${1:-"staging"}
+
+echo "Deploying CloudForge AI to ${ENVIRONMENT} environment..."
+
+# Create namespace if it doesn't exist
+kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -
+
+# Add necessary labels to namespace
+kubectl label namespace ${NAMESPACE} name=${NAMESPACE} --overwrite
+
+# Deploy secrets
+echo "Creating secrets..."
+kubectl create secret generic cloudforge-secrets \
+  --from-literal=database-url="${DATABASE_URL}" \
+  --from-literal=jwt-secret="${JWT_SECRET}" \
+  --from-literal=encryption-key="${ENCRYPTION_KEY}" \
+  --namespace=${NAMESPACE} \
+  --dry-run=client -o yaml | kubectl apply -f -
+
+# Deploy ConfigMap
+echo "Creating ConfigMap..."
+kubectl create configmap cloudforge-config \
+  --from-literal=redis-url="${REDIS_URL}" \
+  --from-literal=environment="${ENVIRONMENT}" \
+  --from-literal=log-level="info" \
+  --namespace=${NAMESPACE} \
+  --dry-run=client -o yaml | kubectl apply -f -
+
+# Deploy using Helm
+echo "Deploying with Helm..."
+helm upgrade --install ${RELEASE_NAME} ${CHART_PATH} \
+  --namespace=${NAMESPACE} \
+  --values=${CHART_PATH}/values-${ENVIRONMENT}.yaml \
+  --set image.tag=${IMAGE_TAG:-"latest"} \
+  --set environment=${ENVIRONMENT} \
+  --wait \
+  --timeout=10m
+
+# Verify deployment
+echo "Verifying deployment..."
+kubectl rollout status deployment/cloudforge-backend -n ${NAMESPACE}
+kubectl rollout status deployment/cloudforge-frontend -n ${NAMESPACE}
+kubectl rollout status deployment/cloudforge-ai -n ${NAMESPACE}
+
+# Run health checks
+echo "Running health checks..."
+kubectl wait --for=condition=available --timeout=300s deployment/cloudforge-backend -n ${NAMESPACE}
+kubectl wait --for=condition=available --timeout=300s deployment/cloudforge-frontend -n ${NAMESPACE}
+kubectl wait --for=condition=available --timeout=300s deployment/cloudforge-ai -n ${NAMESPACE}
+
+# Get service URLs
+echo "Deployment complete! Service URLs:"
+kubectl get ingress -n ${NAMESPACE}
+
+echo "CloudForge AI deployment to ${ENVIRONMENT} completed successfully!"
+\end{lstlisting}
+
+\section{CI/CD Pipeline Scripts}
+
+\subsection{GitHub Actions Workflow}
+
+\begin{lstlisting}[language=yaml]
+name: CloudForge AI CI/CD
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+        python-version: [3.9, 3.10, 3.11]
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+        cache: 'pip'
+    
+    - name: Install dependencies
+      run: |
+        cd frontend && npm ci
+        cd ../backend && npm ci
+        cd ../ai-scripts && pip install -r requirements.txt
+    
+    - name: Run tests
+      run: |
+        cd frontend && npm test -- --coverage --watchAll=false
+        cd ../backend && npm test -- --coverage
+        cd ../ai-scripts && python -m pytest --cov=./ --cov-report=xml
+    
+    - name: Upload coverage reports
+      uses: codecov/codecov-action@v3
+      with:
+        files: ./frontend/coverage/lcov.info,./backend/coverage/lcov.info,./ai-scripts/coverage.xml
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=ref,event=branch
+          type=sha,prefix={{branch}}-
+          type=raw,value=latest,enable={{is_default_branch}}
+    
+    - name: Build and push Docker images
+      run: |
+        # Build frontend
+        docker build -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/frontend:${{ github.sha }} ./frontend
+        docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/frontend:${{ github.sha }}
+        
+        # Build backend
+        docker build -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/backend:${{ github.sha }} ./backend
+        docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/backend:${{ github.sha }}
+        
+        # Build AI services
+        docker build -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/ai:${{ github.sha }} ./ai-scripts
+        docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/ai:${{ github.sha }}
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    environment: production
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: us-west-2
+    
+    - name: Update kubeconfig
+      run: |
+        aws eks update-kubeconfig --region us-west-2 --name cloudforge-cluster
+    
+    - name: Deploy to production
+      run: |
+        export IMAGE_TAG=${{ github.sha }}
+        ./scripts/deploy.sh production
+    
+    - name: Verify deployment
+      run: |
+        kubectl get pods -n cloudforge-ai
+        kubectl get services -n cloudforge-ai
+        
+        # Wait for rollout to complete
+        kubectl rollout status deployment/cloudforge-backend -n cloudforge-ai --timeout=600s
+        kubectl rollout status deployment/cloudforge-frontend -n cloudforge-ai --timeout=600s
+        kubectl rollout status deployment/cloudforge-ai -n cloudforge-ai --timeout=600s
+    
+    - name: Run smoke tests
+      run: |
+        # Basic health check
+        kubectl wait --for=condition=available --timeout=300s deployment/cloudforge-backend -n cloudforge-ai
+        
+        # API health check
+        BACKEND_URL=$(kubectl get ingress cloudforge-ingress -n cloudforge-ai -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+        curl -f http://${BACKEND_URL}/health || exit 1
+        
+        echo "Deployment verification completed successfully!"
+\end{lstlisting}
+
+\section{Database Migration Scripts}
+
+\subsection{Database Setup and Migration}
+
+\begin{lstlisting}[language=bash]
+#!/bin/bash
+
+set -e
+
+# Database migration script for CloudForge AI
+DATABASE_URL=${DATABASE_URL:-"postgresql://cloudforge:password@localhost:5432/cloudforge"}
+MIGRATION_DIR="./migrations"
+
+echo "Starting database migration for CloudForge AI..."
+
+# Check if database is accessible
+echo "Checking database connectivity..."
+psql ${DATABASE_URL} -c "SELECT version();" > /dev/null 2>&1 || {
+    echo "Error: Cannot connect to database"
+    exit 1
+}
+
+# Create migration tracking table if it doesn't exist
+psql ${DATABASE_URL} -c "
+CREATE TABLE IF NOT EXISTS schema_migrations (
+    version VARCHAR(255) PRIMARY KEY,
+    applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+"
+
+# Apply migrations
+for migration_file in ${MIGRATION_DIR}/*.sql; do
+    if [[ -f "$migration_file" ]]; then
+        migration_name=$(basename "$migration_file" .sql)
+        
+        # Check if migration already applied
+        if psql ${DATABASE_URL} -t -c "SELECT version FROM schema_migrations WHERE version = '$migration_name';" | grep -q "$migration_name"; then
+            echo "Migration $migration_name already applied, skipping..."
+            continue
+        fi
+        
+        echo "Applying migration: $migration_name"
+        
+        # Apply migration
+        psql ${DATABASE_URL} -f "$migration_file"
+        
+        # Record migration
+        psql ${DATABASE_URL} -c "INSERT INTO schema_migrations (version) VALUES ('$migration_name');"
+        
+        echo "Migration $migration_name applied successfully"
+    fi
+done
+
+echo "Database migration completed successfully!"
+
+# Run data seeding for non-production environments
+if [[ "${ENVIRONMENT}" != "production" ]]; then
+    echo "Seeding development data..."
+    psql ${DATABASE_URL} -f "./seeds/development_data.sql"
+fi
+
+echo "Database setup completed!"
+\end{lstlisting}

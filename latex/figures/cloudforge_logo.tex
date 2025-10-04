@@ -1,0 +1,30 @@
+% Placeholder for CloudForge AI logo
+% In a real implementation, this would be the actual logo file
+% For compilation purposes, this creates a simple text-based logo
+
+\documentclass{article}
+\usepackage{tikz}
+\usepackage{xcolor}
+
+\definecolor{primaryblue}{RGB}{0,102,204}
+\definecolor{secondaryblue}{RGB}{51,153,255}
+
+\begin{document}
+\thispagestyle{empty}
+
+\begin{tikzpicture}[scale=2]
+    % Cloud shape
+    \fill[primaryblue] (0,0.8) arc (180:0:0.5) arc (0:180:0.3) arc (0:180:0.4) arc (0:180:0.2);
+    
+    % AI brain inside cloud
+    \fill[white] (0.5,0.5) circle (0.2);
+    \draw[secondaryblue, thick] (0.3,0.5) -- (0.7,0.5);
+    \draw[secondaryblue, thick] (0.5,0.3) -- (0.5,0.7);
+    \draw[secondaryblue, thick] (0.35,0.35) -- (0.65,0.65);
+    \draw[secondaryblue, thick] (0.35,0.65) -- (0.65,0.35);
+    
+    % Text
+    \node[primaryblue, font=\huge\bfseries] at (0.5,-0.3) {CloudForge AI};
+\end{tikzpicture}
+
+\end{document}

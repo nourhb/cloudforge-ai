@@ -1,0 +1,89 @@
+version: '3.8'
+
+services:
+  # Frontend - Next.js Dashboard
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - NEXT_PUBLIC_API_URL=http://backend:4000
+    depends_on:
+      - backend
+    networks:
+      - cloudforge-network
+    restart: unless-stopped
+
+  # Backend - Nest.js API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "4000:4000"
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=mongodb://mongodb:27017/cloudforge
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=cloudforge-jwt-secret-2025
+    depends_on:
+      - mongodb
+      - redis
+    networks:
+      - cloudforge-network
+    restart: unless-stopped
+
+  # AI Scripts - Python Flask API
+  ai-scripts:
+    build:
+      context: ./ai-scripts
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_ENV=development
+      - DATABASE_URL=mongodb://mongodb:27017/cloudforge
+    depends_on:
+      - mongodb
+    networks:
+      - cloudforge-network
+    restart: unless-stopped
+
+  # MongoDB - Primary Database
+  mongodb:
+    image: mongo:7
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=password123
+      - MONGO_INITDB_DATABASE=cloudforge
+    volumes:
+      - mongodb-data:/data/db
+      - ./infra/mongodb/init.js:/docker-entrypoint-initdb.d/init.js:ro
+    networks:
+      - cloudforge-network
+    restart: unless-stopped
+
+  # Redis - Caching and Session Store
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    networks:
+      - cloudforge-network
+    restart: unless-stopped
+
+networks:
+  cloudforge-network:
+    driver: bridge
+
+volumes:
+  mongodb-data:
+  redis-data:

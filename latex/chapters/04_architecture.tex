@@ -1,0 +1,380 @@
+\chapter{System Architecture and Design}
+
+\section{Architectural Overview}
+
+CloudForge AI is architected as a cloud-native, microservices-based platform that leverages containerization, orchestration, and AI-powered services to deliver scalable and intelligent cloud management capabilities. The architecture follows domain-driven design principles, ensuring clear separation of concerns while maintaining seamless integration across all platform components.
+
+\subsection{Architectural Principles}
+
+The CloudForge AI architecture is guided by several core principles that ensure scalability, maintainability, and operational excellence:
+
+\begin{sprintbox}{Microservices Architecture}
+\begin{itemize}
+    \item Service independence and autonomous deployment
+    \item Domain-driven service boundaries
+    \item API-first communication protocols
+    \item Fault isolation and resilience patterns
+    \item Independent scaling and resource optimization
+\end{itemize}
+\end{sprintbox}
+
+\begin{sprintbox}{Cloud-Native Design}
+\begin{itemize}
+    \item Container-based deployment and orchestration
+    \item Infrastructure as Code management
+    \item Horizontal scaling and auto-scaling capabilities
+    \item Cloud provider agnostic architecture
+    \item Distributed system design patterns
+\end{itemize}
+\end{sprintbox}
+
+\begin{sprintbox}{AI-First Approach}
+\begin{itemize}
+    \item Machine learning model integration at every layer
+    \item Real-time prediction and recommendation engines
+    \item Adaptive learning and continuous improvement
+    \item Natural language processing capabilities
+    \item Intelligent automation and decision making
+\end{itemize}
+\end{sprintbox}
+
+\section{System Architecture Diagram}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[node distance=1.5cm, auto, scale=0.85, every node/.style={scale=0.85}]
+    % Define styles
+    \tikzstyle{layer} = [rectangle, rounded corners, minimum width=14cm, minimum height=1.2cm, text centered, draw=primaryblue, fill=lightgray, font=\bfseries]
+    \tikzstyle{service} = [rectangle, rounded corners, minimum width=2.8cm, minimum height=0.8cm, text centered, draw=secondaryblue, fill=white, font=\footnotesize]
+    \tikzstyle{database} = [cylinder, shape border rotate=90, minimum width=1.5cm, minimum height=1cm, text centered, draw=darkgray, fill=lightgray, font=\footnotesize]
+    \tikzstyle{external} = [rectangle, rounded corners, minimum width=2cm, minimum height=0.8cm, text centered, draw=orange, fill=yellow!20, font=\footnotesize]
+    
+    % Presentation Layer
+    \node [layer] (presentation_layer) at (0,8) {Presentation Layer};
+    \node [service] (react_app) at (-4,7) {React Frontend};
+    \node [service] (ai_dashboard) at (-1,7) {AI Dashboard};
+    \node [service] (admin_panel) at (2,7) {Admin Panel};
+    \node [service] (mobile_app) at (5,7) {Mobile App};
+    
+    % API Gateway Layer
+    \node [layer] (gateway_layer) at (0,5.5) {API Gateway \& Load Balancing Layer};
+    \node [service] (api_gateway) at (-2,4.5) {NestJS Gateway};
+    \node [service] (load_balancer) at (1,4.5) {Kong Gateway};
+    \node [service] (auth_service) at (4,4.5) {Auth Service};
+    
+    % Business Logic Layer
+    \node [layer] (business_layer) at (0,3) {Business Logic \& Services Layer};
+    \node [service] (iac_service) at (-5,2) {IaC Generator};
+    \node [service] (marketplace) at (-2.5,2) {Marketplace};
+    \node [service] (migration) at (0,2) {Migration};
+    \node [service] (monitoring) at (2.5,2) {Monitoring};
+    \node [service] (user_mgmt) at (5,2) {User Management};
+    
+    % AI Services Layer
+    \node [layer] (ai_layer) at (0,0.5) {AI \& Machine Learning Layer};
+    \node [service] (forecasting) at (-4,-.5) {Forecasting Engine};
+    \node [service] (anomaly_detection) at (-1,-.5) {Anomaly Detection};
+    \node [service] (migration_analyzer) at (2,-.5) {Migration Analyzer};
+    \node [service] (nlp_processor) at (5,-.5) {NLP Processor};
+    
+    % Data Layer
+    \node [layer] (data_layer) at (0,-2) {Data \& Storage Layer};
+    \node [database] (postgresql) at (-4,-3) {PostgreSQL};
+    \node [database] (redis) at (-1.5,-3) {Redis Cache};
+    \node [database] (mongodb) at (1,-3) {MongoDB};
+    \node [database] (minio) at (3.5,-3) {MinIO Storage};
+    
+    % Infrastructure Layer
+    \node [layer] (infra_layer) at (0,-4.5) {Infrastructure \& Orchestration Layer};
+    \node [service] (kubernetes) at (-3,-5.5) {Kubernetes};
+    \node [service] (prometheus) at (-0.5,-5.5) {Prometheus};
+    \node [service] (grafana) at (2,-5.5) {Grafana};
+    \node [service] (elk_stack) at (4.5,-5.5) {ELK Stack};
+    
+    % External Services
+    \node [external] (aws) at (-6,0.5) {AWS};
+    \node [external] (azure) at (-6,-1) {Azure};
+    \node [external] (gcp) at (-6,-2.5) {GCP};
+    
+    % Arrows showing data flow
+    \draw [->] (react_app) -- (api_gateway);
+    \draw [->] (ai_dashboard) -- (api_gateway);
+    \draw [->] (admin_panel) -- (load_balancer);
+    \draw [->] (mobile_app) -- (auth_service);
+    
+    \draw [->] (api_gateway) -- (iac_service);
+    \draw [->] (load_balancer) -- (marketplace);
+    \draw [->] (auth_service) -- (user_mgmt);
+    
+    \draw [->] (migration) -- (migration_analyzer);
+    \draw [->] (monitoring) -- (anomaly_detection);
+    \draw [->] (iac_service) -- (forecasting);
+    
+    \draw [->] (forecasting) -- (postgresql);
+    \draw [->] (anomaly_detection) -- (redis);
+    \draw [->] (migration_analyzer) -- (mongodb);
+    
+    \draw [->] (aws) -- (forecasting);
+    \draw [->] (azure) -- (anomaly_detection);
+    \draw [->] (gcp) -- (migration_analyzer);
+\end{tikzpicture}
+\caption{CloudForge AI System Architecture}
+\label{fig:system_architecture}
+\end{figure}
+
+\section{Component Architecture Details}
+
+\subsection{Presentation Layer Components}
+
+The presentation layer provides multiple interfaces for different user personas and use cases:
+
+\subsubsection{React Frontend Application}
+\begin{itemize}
+    \item \textbf{Technology Stack}: React 18.2.0, Next.js 14.0.0, TypeScript 5.0.0
+    \item \textbf{Architecture Pattern}: Component-based architecture with hooks and context
+    \item \textbf{State Management}: React Query for server state, Zustand for client state
+    \item \textbf{Styling}: Tailwind CSS with custom design system components
+    \item \textbf{Performance}: Code splitting, lazy loading, and image optimization
+\end{itemize}
+
+\subsubsection{AI-Powered Dashboard}
+\begin{itemize}
+    \item \textbf{Real-time Analytics}: Live metrics and performance dashboards
+    \item \textbf{Predictive Visualizations}: ML-generated forecasts and trend analysis
+    \item \textbf{Interactive Charts}: D3.js and Chart.js integration for dynamic data visualization
+    \item \textbf{Customizable Widgets}: Drag-and-drop dashboard configuration
+    \item \textbf{Responsive Design}: Mobile-first approach with adaptive layouts
+\end{itemize}
+
+\subsection{API Gateway and Load Balancing}
+
+\subsubsection{NestJS API Gateway}
+\begin{itemize}
+    \item \textbf{Request Routing}: Intelligent routing based on service availability and load
+    \item \textbf{Authentication}: JWT-based authentication with refresh token rotation
+    \item \textbf{Rate Limiting}: Adaptive rate limiting based on user tiers and API usage
+    \item \textbf{Request Transformation}: Request/response transformation and validation
+    \item \textbf{Circuit Breaking}: Fault tolerance with automatic failover mechanisms
+\end{itemize}
+
+\subsubsection{Kong API Gateway}
+\begin{itemize}
+    \item \textbf{Load Balancing}: Round-robin and weighted load balancing algorithms
+    \item \textbf{SSL Termination}: Automated SSL certificate management and renewal
+    \item \textbf{API Analytics}: Comprehensive API usage analytics and monitoring
+    \item \textbf{Plugin Ecosystem}: Extensible plugin architecture for custom functionality
+    \item \textbf{Service Discovery}: Automatic service registration and health checking
+\end{itemize}
+
+\section{AI Services Architecture}
+
+\subsection{Forecasting Engine Architecture}
+
+The forecasting engine implements a sophisticated multi-model approach that combines multiple machine learning algorithms to deliver accurate predictions:
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[node distance=1.5cm, auto]
+    \tikzstyle{input} = [rectangle, rounded corners, minimum width=2cm, minimum height=0.8cm, text centered, draw=primaryblue, fill=lightgray, font=\footnotesize]
+    \tikzstyle{process} = [rectangle, rounded corners, minimum width=2.5cm, minimum height=0.8cm, text centered, draw=secondaryblue, fill=white, font=\footnotesize]
+    \tikzstyle{model} = [ellipse, minimum width=2cm, minimum height=0.8cm, text centered, draw=darkgray, fill=yellow!20, font=\footnotesize]
+    \tikzstyle{output} = [rectangle, rounded corners, minimum width=2cm, minimum height=0.8cm, text centered, draw=green, fill=green!20, font=\footnotesize]
+    
+    % Input layer
+    \node [input] (raw_data) {Raw Data};
+    \node [input, right of=raw_data, xshift=1cm] (metrics) {Metrics};
+    \node [input, right of=metrics, xshift=1cm] (external) {External Data};
+    
+    % Processing layer
+    \node [process, below of=metrics, yshift=-0.5cm] (preprocessing) {Data Preprocessing};
+    \node [process, below of=preprocessing] (feature_eng) {Feature Engineering};
+    
+    % Model layer
+    \node [model, below left of=feature_eng, xshift=-1cm, yshift=-0.5cm] (arima) {ARIMA};
+    \node [model, below of=feature_eng, yshift=-0.5cm] (ridge) {Ridge Regression};
+    \node [model, below right of=feature_eng, xshift=1cm, yshift=-0.5cm] (random_forest) {Random Forest};
+    
+    % Ensemble layer
+    \node [process, below of=ridge, yshift=-1cm] (ensemble) {Ensemble Voting};
+    
+    % Output layer
+    \node [output, below of=ensemble] (predictions) {Predictions};
+    \node [output, below left of=predictions, xshift=-1cm] (confidence) {Confidence Scores};
+    \node [output, below right of=predictions, xshift=1cm] (recommendations) {Recommendations};
+    
+    % Arrows
+    \draw [->] (raw_data) -- (preprocessing);
+    \draw [->] (metrics) -- (preprocessing);
+    \draw [->] (external) -- (preprocessing);
+    \draw [->] (preprocessing) -- (feature_eng);
+    \draw [->] (feature_eng) -- (arima);
+    \draw [->] (feature_eng) -- (ridge);
+    \draw [->] (feature_eng) -- (random_forest);
+    \draw [->] (arima) -- (ensemble);
+    \draw [->] (ridge) -- (ensemble);
+    \draw [->] (random_forest) -- (ensemble);
+    \draw [->] (ensemble) -- (predictions);
+    \draw [->] (predictions) -- (confidence);
+    \draw [->] (predictions) -- (recommendations);
+\end{tikzpicture}
+\caption{Forecasting Engine Architecture}
+\label{fig:forecasting_architecture}
+\end{figure}
+
+\subsubsection{Model Components}
+
+\begin{description}[leftmargin=*]
+    \item[Time Series Preprocessor] Handles data cleaning, normalization, and seasonal decomposition
+    \item[Feature Engineering Pipeline] Generates lag features, rolling statistics, and external indicators
+    \item[ARIMA Model] Captures autoregressive and moving average patterns in time series data
+    \item[Ridge Regression] Provides regularized linear modeling for trend analysis
+    \item[Random Forest] Handles non-linear relationships and feature interactions
+    \item[Ensemble Voting System] Combines predictions using weighted averaging based on historical performance
+\end{description}
+
+\subsection{Anomaly Detection Architecture}
+
+The anomaly detection system employs multiple algorithms to identify various types of anomalies in cloud infrastructure metrics:
+
+\begin{table}[H]
+\centering
+\caption{Anomaly Detection Algorithms}
+\begin{tabular}{|p{3cm}|p{4cm}|p{5cm}|}
+\hline
+\textbf{Algorithm} & \textbf{Anomaly Type} & \textbf{Use Case} \\
+\hline
+Isolation Forest & Global outliers & Identifying unusual resource consumption patterns \\
+\hline
+One-Class SVM & Boundary violations & Detecting deviations from normal operational boundaries \\
+\hline
+Local Outlier Factor & Local outliers & Finding anomalies within specific contexts or clusters \\
+\hline
+Statistical Z-Score & Statistical outliers & Identifying values beyond statistical thresholds \\
+\hline
+LSTM Autoencoder & Temporal anomalies & Detecting unusual patterns in time series data \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{Migration Analyzer Architecture}
+
+The migration analyzer combines natural language processing with deep learning to analyze database schemas and generate migration recommendations:
+
+\begin{itemize}
+    \item \textbf{Schema Parser}: Analyzes SQL DDL statements and extracts structural information
+    \item \textbf{Dependency Analyzer}: Identifies relationships, constraints, and data dependencies
+    \item \textbf{Risk Assessment Engine}: Evaluates migration complexity and potential risks
+    \item \textbf{Recommendation Generator}: Produces step-by-step migration plans with optimization suggestions
+    \item \textbf{Compatibility Checker}: Validates target platform compatibility and feature mapping
+\end{itemize}
+
+\section{Data Architecture and Management}
+
+\subsection{Data Storage Strategy}
+
+CloudForge AI implements a polyglot persistence approach, selecting optimal storage technologies for specific data patterns and access requirements:
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[node distance=2cm, auto]
+    \tikzstyle{datatype} = [rectangle, rounded corners, minimum width=2.5cm, minimum height=1cm, text centered, draw=primaryblue, fill=lightgray, font=\footnotesize]
+    \tikzstyle{storage} = [cylinder, shape border rotate=90, minimum width=2cm, minimum height=1.2cm, text centered, draw=darkgray, fill=white, font=\footnotesize]
+    
+    % Data types
+    \node [datatype] (transactional) {Transactional Data};
+    \node [datatype, right of=transactional, xshift=2cm] (timeseries) {Time Series Data};
+    \node [datatype, below of=transactional] (documents) {Document Data};
+    \node [datatype, below of=timeseries] (files) {File Storage};
+    \node [datatype, below of=documents, xshift=1cm] (cache) {Cache Data};
+    
+    % Storage solutions
+    \node [storage, right of=transactional, xshift=5cm] (postgresql) {PostgreSQL};
+    \node [storage, right of=timeseries, xshift=5cm] (influxdb) {InfluxDB};
+    \node [storage, right of=documents, xshift=5cm] (mongodb) {MongoDB};
+    \node [storage, right of=files, xshift=5cm] (minio) {MinIO};
+    \node [storage, right of=cache, xshift=5cm] (redis) {Redis};
+    
+    % Arrows
+    \draw [->] (transactional) -- (postgresql);
+    \draw [->] (timeseries) -- (influxdb);
+    \draw [->] (documents) -- (mongodb);
+    \draw [->] (files) -- (minio);
+    \draw [->] (cache) -- (redis);
+\end{tikzpicture}
+\caption{Data Storage Architecture}
+\label{fig:data_storage}
+\end{figure}
+
+\subsection{Data Pipeline Architecture}
+
+The data pipeline ensures reliable data flow from ingestion to consumption across all platform components:
+
+\begin{enumerate}[leftmargin=*]
+    \item \textbf{Data Ingestion}: Real-time data collection from multiple sources using Apache Kafka
+    \item \textbf{Data Processing}: Stream processing with Apache Flink for real-time analytics
+    \item \textbf{Data Transformation}: ETL processes using Apache Airflow for batch processing
+    \item \textbf{Data Quality}: Automated data validation and quality monitoring
+    \item \textbf{Data Catalog}: Comprehensive metadata management and data lineage tracking
+\end{enumerate}
+
+\section{Security Architecture}
+
+\subsection{Security Layers}
+
+CloudForge AI implements defense-in-depth security principles across multiple layers:
+
+\begin{table}[H]
+\centering
+\caption{Security Architecture Layers}
+\begin{tabular}{|p{3cm}|p{5cm}|p{4cm}|}
+\hline
+\textbf{Layer} & \textbf{Security Measures} & \textbf{Technologies} \\
+\hline
+Network Security & Firewalls, VPN, Network Segmentation & AWS Security Groups, Kong \\
+\hline
+Application Security & Authentication, Authorization, Input Validation & JWT, OAuth2, Helmet.js \\
+\hline
+Data Security & Encryption at Rest/Transit, Data Masking & AES-256, TLS 1.3, HashiCorp Vault \\
+\hline
+Infrastructure Security & Container Security, Secret Management & Falco, Kubernetes RBAC \\
+\hline
+Monitoring Security & SIEM, Audit Logging, Anomaly Detection & ELK Stack, Prometheus \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{Authentication and Authorization}
+
+\begin{itemize}
+    \item \textbf{Multi-Factor Authentication}: TOTP-based MFA with backup codes
+    \item \textbf{Role-Based Access Control}: Granular permissions based on user roles and responsibilities
+    \item \textbf{API Key Management}: Secure API key generation, rotation, and revocation
+    \item \textbf{Session Management}: Secure session handling with automatic timeout and refresh
+    \item \textbf{Audit Trail}: Comprehensive logging of all authentication and authorization events
+\end{itemize}
+
+\section{Scalability and Performance Design}
+
+\subsection{Horizontal Scaling Strategy}
+
+CloudForge AI is designed for horizontal scaling across all architectural layers:
+
+\begin{description}[leftmargin=*]
+    \item[Frontend Scaling] CDN distribution, edge caching, and geographic load balancing
+    \item[API Gateway Scaling] Multiple gateway instances with auto-scaling based on request volume
+    \item[Service Scaling] Kubernetes Horizontal Pod Autoscaler (HPA) based on CPU, memory, and custom metrics
+    \item[Database Scaling] Read replicas, sharding strategies, and connection pooling
+    \item[AI Model Scaling] Model serving with auto-scaling based on inference load
+\end{description}
+
+\subsection{Performance Optimization Techniques}
+
+\begin{enumerate}[leftmargin=*]
+    \item \textbf{Caching Strategy}: Multi-level caching with Redis for session data and application cache
+    \item \textbf{Database Optimization}: Query optimization, indexing strategies, and connection pooling
+    \item \textbf{Model Optimization}: Model quantization, pruning, and inference optimization
+    \item \textbf{Network Optimization}: HTTP/2, gRPC for internal communication, and content compression
+    \item \textbf{Resource Management}: Kubernetes resource requests and limits with quality of service classes
+\end{enumerate}
+
+This comprehensive architecture provides the foundation for CloudForge AI's scalable, secure, and intelligent cloud management capabilities. The subsequent sprint chapters will detail the implementation of these architectural components and the evolution of the system design throughout the development process.

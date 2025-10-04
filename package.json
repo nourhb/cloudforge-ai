@@ -1,0 +1,16 @@
+{
+  "name": "cloudforge-ai-docs-sync",
+  "version": "1.0.0",
+  "description": "Automated documentation synchronization for CloudForge AI",
+  "scripts": {
+    "sync-docs": "pwsh ./scripts/sync-docs.ps1",
+    "sync-docs-force": "pwsh ./scripts/sync-docs.ps1 -Force",
+    "watch-docs": "pwsh ./scripts/watch-changes.ps1",
+    "compile-latex": "cd latex && pdflatex -interaction=nonstopmode main_fixed.tex",
+    "git-push-docs": "git add . && git commit -m \"docs: auto-sync documentation\" && git push origin main"
+  },
+  "devDependencies": {
+    "chokidar": "^3.5.3",
+    "nodemon": "^3.0.1"
+  }
+}

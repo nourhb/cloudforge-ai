@@ -1,0 +1,47 @@
+replicaCount:
+  frontend: 1
+  backend: 1
+
+image:
+  repository:
+    frontend: ghcr.io/your-org/cloudforge-ai/frontend
+    backend: ghcr.io/your-org/cloudforge-ai/backend
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  frontend:
+    type: ClusterIP
+    port: 3000
+  backend:
+    type: ClusterIP
+    port: 4000
+
+resources:
+  frontend:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+  backend:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: cloudforge.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+# TEST: values.yaml usable for helm install

@@ -1,0 +1,125 @@
+
+\documentclass{report}
+% Core packages
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[english]{babel}
+\usepackage{lmodern}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{fancyhdr}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{color}
+\usepackage{xcolor}
+
+% Tables and floats
+\usepackage{longtable}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{array}
+\usepackage{float}
+
+% Subfigures and captions
+\usepackage{subcaption}
+
+% Lists and boxes
+\usepackage{enumitem}
+\usepackage{tcolorbox}
+
+% TikZ for diagrams and graphs
+\usepackage{tikz}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\usetikzlibrary{positioning,shapes,arrows,chains,matrix,backgrounds,fit,decorations.pathreplacing,calc}
+
+% Section formatting
+\usepackage{titlesec}
+
+% Page geometry
+\geometry{
+    left=2.5cm,
+    right=2.5cm,
+    top=2.5cm,
+    bottom=2.5cm
+}
+
+% Custom colors
+\definecolor{primaryblue}{RGB}{0,102,204}
+\definecolor{secondaryblue}{RGB}{51,153,255}
+\definecolor{lightgray}{RGB}{245,245,245}
+\definecolor{darkgray}{RGB}{85,85,85}
+
+% Custom title formatting
+\titleformat{\chapter}[display]
+{\normalfont\huge\bfseries\color{primaryblue}}
+{\chaptertitlename\ \thechapter}{20pt}{\Huge}
+
+\titleformat{\section}
+{\normalfont\Large\bfseries\color{primaryblue}}
+{\thesection}{1em}{}
+
+% Header and footer
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[LE,RO]{\thepage}
+\fancyhead[LO,RE]{\leftmark}
+\renewcommand{\headrulewidth}{0.4pt}
+
+% Custom environments
+\newtcolorbox{sprintbox}[1]{
+    colback=lightgray,
+    colframe=primaryblue,
+    title=#1,
+    fonttitle=\bfseries,
+    arc=2mm
+}
+
+\newtcolorbox{featurebox}[1]{
+    colback=lightgray,
+    colframe=secondaryblue,
+    title=#1,
+    fonttitle=\bfseries,
+    arc=2mm
+}
+
+\begin{document}
+
+% Title page
+\begin{titlepage}
+    \centering
+    \vspace*{1cm}
+    
+    {\LARGE\bfseries CloudForge AI}\\[0.5cm]
+    {\Large Comprehensive Project Report}\\[0.5cm]
+    {\large AI-Powered Cloud Migration and Infrastructure Management Platform}\\[2cm]
+    
+    \vfill
+    
+    {\large \today}
+\end{titlepage}
+
+% Table of contents
+\tableofcontents
+\newpage
+
+% Introduction and Project Overview
+\input{chapters/01_introduction}
+\input{chapters/02_project_overview}
+\input{chapters/03_methodology}
+\input{chapters/04_architecture}
+
+% Sprint Chapters - Basic working ones
+\input{chapters/05_sprint_01}
+\input{chapters/06_sprint_02}
+\input{chapters/07_sprint_03}
+\input{chapters/09_sprint_05}
+\input{chapters/10_sprint_06}
+
+% Final Chapter
+\input{chapters/20_conclusion}
+
+\end{document}

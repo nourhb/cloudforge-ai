@@ -1,0 +1,94 @@
+{
+  "analysis_timestamp": "2025-10-03T15:11:22.516790",
+  "database_type": "chinook",
+  "table_analyses": {
+    "users": {
+      "table_name": "users",
+      "row_count": 0,
+      "size_mb": 0.0,
+      "index_count": 0,
+      "foreign_keys": [],
+      "primary_key": null,
+      "suggested_indexes": [],
+      "optimization_score": 50.0,
+      "migration_complexity": "Unknown",
+      "estimated_migration_time": "N/A"
+    },
+    "projects": {
+      "table_name": "projects",
+      "row_count": 0,
+      "size_mb": 0.0,
+      "index_count": 0,
+      "foreign_keys": [],
+      "primary_key": null,
+      "suggested_indexes": [],
+      "optimization_score": 50.0,
+      "migration_complexity": "Unknown",
+      "estimated_migration_time": "N/A"
+    }
+  },
+  "migration_plan": {
+    "source_database": "Chinook SQLite",
+    "target_database": "PostgreSQL",
+    "total_tables": 2,
+    "total_size_mb": 0.0,
+    "estimated_duration": "2.0 hours",
+    "complexity_score": 50.0,
+    "recommended_approach": "Direct migration during maintenance window",
+    "risk_assessment": "Medium - Standard e-commerce migration",
+    "pre_migration_tasks": [
+      "Backup source database",
+      "Create target database schema",
+      "Set up replication monitoring",
+      "Prepare rollback procedures"
+    ],
+    "migration_steps": [
+      "Migrate reference tables (artists, genres, media_types)",
+      "Migrate core entities (albums, tracks)",
+      "Migrate customer data",
+      "Migrate transactional data (invoices, invoice_items)",
+      "Create and validate indexes",
+      "Update foreign key constraints",
+      "Verify data integrity"
+    ],
+    "post_migration_tasks": [
+      "Performance testing",
+      "Application configuration update",
+      "Monitor query performance",
+      "Optimize based on usage patterns"
+    ],
+    "rollback_plan": "Restore from backup and revert application configuration"
+  },
+  "query_optimizations": [
+    {
+      "original_query": "SELECT c.first_name, c.last_name, SUM(i.total) as total_spent\n            FROM customers c\n            JOIN invoices i ON c.customer_id = i.customer_id\n            WHERE i.invoice_date >= '2023-01-01'\n            GROUP BY c.customer_id, c.first_name, c.last_name\n            ORDER BY total_spent DESC",
+      "optimized_query": "Original Query: SELECT c.first_name, c.last_name, SUM(i.total) as total_spent FROM customers c JOIN invoices i ON c.customer_id = i.customer_id WHERE i.invoice_date >= '2023-01-01' GROUP BY c.customer_id, c.first_name, c.last_name ORDER BY total_spent DESC  Schema Information: { \"tables\": [ \"customers\", \"invoices\", \"tracks\", \"albums\", \"artists\", \"genres\" ] }  Optimization Guidelines: 1. Use appropriate indexes 2. Minimize subqueries 3. Optimize JOIN operations 4. Reduce data scanning  Optimized Query: ",
+      "performance_improvement": 0,
+      "explanation": "AI-generated optimization with performance improvements",
+      "execution_plan_before": "Original execution plan",
+      "execution_plan_after": "Optimized execution plan",
+      "confidence_score": 0.85
+    },
+    {
+      "original_query": "SELECT t.name, t.composer, a.title as album, ar.name as artist\n            FROM tracks t\n            JOIN albums a ON t.album_id = a.album_id\n            JOIN artists ar ON a.artist_id = ar.artist_id\n            WHERE t.genre_id = 1",
+      "optimized_query": "Original Query: SELECT t.name, t.composer, a.title as album, ar.name as artist FROM tracks t JOIN albums a ON t.album_id = a.album_id JOIN artists ar ON a.artist_id = ar.artist_id WHERE t.genre_id = 1  Schema Information: { \"tables\": [ \"customers\", \"invoices\", \"tracks\", \"albums\", \"artists\", \"genres\" ] }  Optimization Guidelines: 1. Use appropriate indexes 2. Minimize subqueries 3. Optimize JOIN operations 4. Reduce data scanning  Optimized Query: ",
+      "performance_improvement": 0,
+      "explanation": "AI-generated optimization with performance improvements",
+      "execution_plan_before": "Original execution plan",
+      "execution_plan_after": "Optimized execution plan",
+      "confidence_score": 0.85
+    },
+    {
+      "original_query": "SELECT g.name as genre, COUNT(*) as track_count, AVG(t.milliseconds) as avg_duration\n            FROM tracks t\n            JOIN genres g ON t.genre_id = g.genre_id\n            GROUP BY g.genre_id, g.name\n            HAVING COUNT(*) > 10",
+      "optimized_query": "Original Query: SELECT g.name as genre, COUNT(*) as track_count, AVG(t.milliseconds) as avg_duration FROM tracks t JOIN genres g ON t.genre_id = g.genre_id GROUP BY g.genre_id, g.name HAVING COUNT(*) > 10  Schema Information: { \"tables\": [ \"customers\", \"invoices\", \"tracks\", \"albums\", \"artists\", \"genres\" ] }  Optimization Guidelines: 1. Use appropriate indexes 2. Minimize subqueries 3. Optimize JOIN operations 4. Reduce data scanning  Optimized Query:   ,",
+      "performance_improvement": 0,
+      "explanation": "AI-generated optimization with performance improvements",
+      "execution_plan_before": "Original execution plan",
+      "execution_plan_after": "Optimized execution plan",
+      "confidence_score": 0.85
+    }
+  ],
+  "recommendations": [
+    "Focus optimization efforts on: users, projects"
+  ]
+}

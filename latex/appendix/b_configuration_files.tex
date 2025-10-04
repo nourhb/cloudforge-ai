@@ -1,0 +1,275 @@
+\chapter{Configuration Files}
+
+\section{CloudForge AI Configuration Reference}
+
+This appendix provides comprehensive configuration file templates and examples for deploying and customizing CloudForge AI.
+
+\subsection{Docker Configuration}
+
+\subsubsection{docker-compose.yml}
+
+\begin{lstlisting}[language=yaml]
+version: '3.8'
+services:
+  cloudforge-frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_API_URL=http://localhost:8080
+      - REACT_APP_VERSION=3.0.0
+    depends_on:
+      - cloudforge-backend
+
+  cloudforge-backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - DATABASE_URL=postgresql://user:pass@postgres:5432/cloudforge
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=your-jwt-secret
+    depends_on:
+      - postgres
+      - redis
+
+  cloudforge-ai:
+    build:
+      context: ./ai-scripts
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - MODEL_PATH=/app/models
+      - INFERENCE_TIMEOUT=30000
+    volumes:
+      - ./models:/app/models
+
+  postgres:
+    image: postgres:15
+    environment:
+      - POSTGRES_DB=cloudforge
+      - POSTGRES_USER=cloudforge
+      - POSTGRES_PASSWORD=secure-password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+
+volumes:
+  postgres_data:
+  redis_data:
+\end{lstlisting}
+
+\section{Kubernetes Configuration}
+
+\subsection{Backend Deployment}
+
+\begin{lstlisting}[language=yaml]
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloudforge-backend
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: cloudforge-backend
+  template:
+    metadata:
+      labels:
+        app: cloudforge-backend
+    spec:
+      containers:
+      - name: backend
+        image: cloudforge/backend:3.0.0
+        ports:
+        - containerPort: 8080
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: cloudforge-secrets
+              key: database-url
+        - name: REDIS_URL
+          valueFrom:
+            configMapKeyRef:
+              name: cloudforge-config
+              key: redis-url
+        resources:
+          requests:
+            cpu: 200m
+            memory: 512Mi
+          limits:
+            cpu: 500m
+            memory: 1Gi
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
+\end{lstlisting}
+
+\section{Environment Configuration}
+
+\subsection{Production Environment Variables}
+
+\begin{lstlisting}[language=bash]
+# Database Configuration
+DATABASE_URL=postgresql://user:pass@db.example.com:5432/cloudforge
+DATABASE_POOL_SIZE=20
+DATABASE_CONNECTION_TIMEOUT=30000
+
+# Redis Configuration
+REDIS_URL=redis://cache.example.com:6379
+REDIS_CLUSTER_MODE=true
+REDIS_TTL_DEFAULT=3600
+
+# AI Services Configuration
+AI_MODEL_PATH=/app/models
+AI_INFERENCE_TIMEOUT=30000
+AI_BATCH_SIZE=32
+AI_GPU_ENABLED=true
+
+# Security Configuration
+JWT_SECRET=your-super-secure-jwt-secret
+JWT_EXPIRY=1h
+ENCRYPTION_KEY=your-aes-256-encryption-key
+CORS_ORIGINS=https://app.cloudforge.ai
+
+# Monitoring Configuration
+METRICS_ENABLED=true
+METRICS_PORT=9090
+LOG_LEVEL=info
+TRACE_SAMPLING_RATE=0.1
+
+# Feature Flags
+FEATURE_ADVANCED_ANALYTICS=true
+FEATURE_MULTI_MODAL_AI=true
+FEATURE_REAL_TIME_MONITORING=true
+\end{lstlisting}
+
+\section{Nginx Configuration}
+
+\subsection{Production Nginx Config}
+
+\begin{lstlisting}[language=nginx]
+upstream cloudforge_backend {
+    least_conn;
+    server backend-1:8080 max_fails=3 fail_timeout=30s;
+    server backend-2:8080 max_fails=3 fail_timeout=30s;
+    server backend-3:8080 max_fails=3 fail_timeout=30s;
+}
+
+upstream cloudforge_ai {
+    least_conn;
+    server ai-service-1:8000 max_fails=3 fail_timeout=30s;
+    server ai-service-2:8000 max_fails=3 fail_timeout=30s;
+}
+
+server {
+    listen 80;
+    server_name api.cloudforge.ai;
+    return 301 https://$server_name$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name api.cloudforge.ai;
+
+    ssl_certificate /etc/ssl/certs/cloudforge.crt;
+    ssl_certificate_key /etc/ssl/private/cloudforge.key;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers ECDHE-RSA-AES256-GCM-SHA512:DHE-RSA-AES256-GCM-SHA512;
+
+    # Rate limiting
+    limit_req_zone $binary_remote_addr zone=api:10m rate=10r/s;
+    limit_req zone=api burst=20 nodelay;
+
+    # API endpoints
+    location /api/ {
+        proxy_pass http://cloudforge_backend;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        
+        # Timeouts
+        proxy_connect_timeout 30s;
+        proxy_send_timeout 30s;
+        proxy_read_timeout 30s;
+    }
+
+    # AI inference endpoints
+    location /ai/ {
+        proxy_pass http://cloudforge_ai;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        
+        # Extended timeout for AI processing
+        proxy_read_timeout 60s;
+    }
+
+    # Health check
+    location /health {
+        return 200 "OK";
+        add_header Content-Type text/plain;
+    }
+}
+\end{lstlisting}
+
+\section{Monitoring Configuration}
+
+\subsection{Prometheus Configuration}
+
+\begin{lstlisting}[language=yaml]
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - "cloudforge_alerts.yml"
+
+scrape_configs:
+  - job_name: 'cloudforge-backend'
+    static_configs:
+      - targets: ['backend:9090']
+    metrics_path: /metrics
+    scrape_interval: 10s
+
+  - job_name: 'cloudforge-ai'
+    static_configs:
+      - targets: ['ai-service:9091']
+    metrics_path: /metrics
+    scrape_interval: 10s
+
+  - job_name: 'kubernetes-pods'
+    kubernetes_sd_configs:
+      - role: pod
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+        action: keep
+        regex: true
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          - alertmanager:9093
+\end{lstlisting}

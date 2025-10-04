@@ -1,0 +1,569 @@
+---
+# infra/ansible/deploy_oracle.yml
+# CloudForge AI Production Deployment to Oracle Cloud Free Tier
+# Enterprise-grade Ansible automation with comprehensive validation
+# Version: 2.0.0
+# Date: October 1, 2025
+# Optimized for Oracle Always Free Tier (2 ARM Ampere A1 VMs, 4 OCPU, 24GB RAM total)
+
+- name: Deploy CloudForge AI to Oracle Cloud Free Tier
+  hosts: oracle_vms
+  become: yes
+  gather_facts: yes
+  vars:
+    # Production Configuration
+    cloudforge_version: "2.0.0"
+    k8s_version: "1.28.0"
+    docker_version: "24.0"
+    helm_version: "3.13.0"
+    domain_name: "{{ ansible_default_ipv4.address }}.nip.io"
+    email_address: "admin@cloudforge.ai"
+    
+    # Oracle Free Tier Resource Optimization
+    resource_config:
+      # Total resources: 4 OCPU, 24GB RAM across 2 VMs
+      frontend:
+        replicas: 2
+        memory_request: "512Mi"
+        memory_limit: "1Gi"
+        cpu_request: "250m"
+        cpu_limit: "500m"
+      backend:
+        replicas: 2
+        memory_request: "1Gi"
+        memory_limit: "2Gi"
+        cpu_request: "500m"
+        cpu_limit: "1000m"
+      ai_services:
+        replicas: 1
+        memory_request: "2Gi"
+        memory_limit: "4Gi"
+        cpu_request: "1000m"
+        cpu_limit: "2000m"
+      database:
+        memory_request: "1Gi"
+        memory_limit: "2Gi"
+        storage_size: "20Gi"
+      minio:
+        replicas: 1
+        memory_request: "512Mi"
+        memory_limit: "1Gi"
+        storage_size: "50Gi"
+    
+    # Security Configuration
+    security_config:
+      enable_tls: true
+      enable_rbac: true
+      enable_network_policies: true
+      enable_pod_security_policies: true
+      jwt_secret: "{{ lookup('password', '/tmp/jwt_secret chars=ascii_letters,digits length=64') }}"
+      database_password: "{{ lookup('password', '/tmp/db_password chars=ascii_letters,digits length=32') }}"
+      minio_password: "{{ lookup('password', '/tmp/minio_password chars=ascii_letters,digits length=32') }}"
+
+  pre_tasks:
+    - name: 🚀 Display CloudForge AI Deployment Banner
+      debug:
+        msg: |
+          ╔══════════════════════════════════════════════════════════════╗
+          ║                 CloudForge AI Oracle Deployment             ║
+          ║                      Production Ready v2.0.0                ║
+          ╠══════════════════════════════════════════════════════════════╣
+          ║ Target: Oracle Cloud Free Tier (ARM Ampere A1)              ║
+          ║ Resources: {{ ansible_processor_vcpus }} vCPUs, {{ ansible_memtotal_mb }}MB RAM per VM                  ║
+          ║ Domain: {{ domain_name }}                        ║
+          ║ Security: TLS, RBAC, Network Policies Enabled               ║
+          ║ Monitoring: Prometheus + Grafana Included                   ║
+          ╚══════════════════════════════════════════════════════════════╝
+          
+    - name: Validate Oracle Cloud Free Tier Requirements
+      assert:
+        that:
+          - ansible_memtotal_mb >= 11000  # Minimum 12GB RAM per VM
+          - ansible_processor_vcpus >= 2   # Minimum 2 vCPUs per VM
+          - ansible_architecture == "aarch64"  # ARM64 architecture
+        fail_msg: |
+          ❌ Oracle Cloud Free Tier validation failed!
+          Requirements: ARM64 architecture, 2+ vCPUs, 12+ GB RAM per VM
+          Current: {{ ansible_architecture }}, {{ ansible_processor_vcpus }} vCPUs, {{ ansible_memtotal_mb }}MB RAM
+          
+    - name: Check disk space requirements
+      assert:
+        that:
+          - ansible_mounts | selectattr('mount', 'equalto', '/') | map(attribute='size_available') | first > 50000000000  # 50GB
+        fail_msg: "Insufficient disk space. Required: 50GB+, Available: {{ (ansible_mounts | selectattr('mount', 'equalto', '/') | map(attribute='size_available') | first / 1024 / 1024 / 1024) | round(1) }}GB"
+
+  tasks:
+    # ============================================================================
+    # SYSTEM PREPARATION AND SECURITY HARDENING
+    # ============================================================================
+    
+    - name: 📦 Update system packages to latest versions
+      apt:
+        update_cache: yes
+        upgrade: dist
+        cache_valid_time: 3600
+        autoremove: yes
+        autoclean: yes
+      tags: [system, security]
+        
+    - name: 📦 Install essential system packages
+      apt:
+        name:
+          - curl
+          - wget
+          - git
+          - htop
+          - iotop
+          - unzip
+          - zip
+          - vim
+          - nano
+          - jq
+          - yq
+          - tree
+          - software-properties-common
+          - apt-transport-https
+          - ca-certificates
+          - gnupg
+          - lsb-release
+          - ufw
+          - fail2ban
+          - logrotate
+          - rsync
+          - ntp
+        state: present
+      tags: [system, packages]
+      
+    - name: 🔒 Configure firewall (UFW)
+      ufw:
+        rule: allow
+        port: "{{ item }}"
+        proto: tcp
+      loop:
+        - "22"    # SSH
+        - "80"    # HTTP
+        - "443"   # HTTPS
+        - "6443"  # Kubernetes API
+        - "30000:32767"  # NodePort range
+      tags: [security, firewall]
+      
+    - name: 🔒 Enable UFW firewall
+      ufw:
+        state: enabled
+        policy: deny
+        direction: incoming
+      tags: [security, firewall]
+      
+    - name: 🔒 Configure fail2ban for SSH protection
+      copy:
+        content: |
+          [sshd]
+          enabled = true
+          port = ssh
+          filter = sshd
+          logpath = /var/log/auth.log
+          maxretry = 3
+          bantime = 3600
+          findtime = 600
+        dest: /etc/fail2ban/jail.d/ssh.conf
+      notify: restart fail2ban
+      tags: [security]
+
+    # ============================================================================
+    # DOCKER INSTALLATION AND CONFIGURATION
+    # ============================================================================
+    
+    - name: 🐳 Add Docker GPG key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+      tags: [docker]
+        
+    - name: 🐳 Add Docker repository for ARM64
+      apt_repository:
+        repo: "deb [arch=arm64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+        state: present
+      tags: [docker]
+        
+    - name: 🐳 Install Docker Engine
+      apt:
+        name:
+          - docker-ce={{ docker_version }}.*
+          - docker-ce-cli={{ docker_version }}.*
+          - containerd.io
+          - docker-buildx-plugin
+          - docker-compose-plugin
+        state: present
+        allow_downgrade: yes
+      tags: [docker]
+        
+    - name: 🐳 Configure Docker daemon for production
+      copy:
+        content: |
+          {
+            "log-driver": "json-file",
+            "log-opts": {
+              "max-size": "10m",
+              "max-file": "3"
+            },
+            "storage-driver": "overlay2",
+            "exec-opts": ["native.cgroupdriver=systemd"],
+            "live-restore": true,
+            "userland-proxy": false,
+            "experimental": false,
+            "metrics-addr": "127.0.0.1:9323",
+            "iptables": false
+          }
+        dest: /etc/docker/daemon.json
+        mode: '0644'
+      notify: restart docker
+      tags: [docker]
+        
+    - name: 🐳 Start and enable Docker service
+      systemd:
+        name: docker
+        state: started
+        enabled: yes
+      tags: [docker]
+        
+    - name: 🐳 Add ubuntu user to docker group
+      user:
+        name: ubuntu
+        groups: docker
+        append: yes
+      tags: [docker]
+
+    # ============================================================================
+    # KUBERNETES (K3S) INSTALLATION
+    # ============================================================================
+    
+    - name: ☸️ Download k3s installation script
+      get_url:
+        url: https://get.k3s.io
+        dest: /tmp/k3s-install.sh
+        mode: '0755'
+      tags: [kubernetes]
+        
+    - name: ☸️ Install k3s (optimized for Oracle Free Tier)
+      shell: |
+        INSTALL_K3S_VERSION=v{{ k8s_version }}+k3s1 \
+        INSTALL_K3S_EXEC="server \
+          --disable traefik \
+          --disable metrics-server \
+          --disable local-storage \
+          --kubelet-arg=max-pods=110 \
+          --kube-apiserver-arg=max-requests-inflight=400 \
+          --kube-apiserver-arg=max-mutating-requests-inflight=200" \
+        /tmp/k3s-install.sh
+      args:
+        creates: /usr/local/bin/k3s
+      tags: [kubernetes]
+        
+    - name: ☸️ Wait for k3s to be ready
+      wait_for:
+        path: /etc/rancher/k3s/k3s.yaml
+        timeout: 300
+      tags: [kubernetes]
+        
+    - name: ☸️ Create .kube directory for ubuntu user
+      file:
+        path: /home/ubuntu/.kube
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+        mode: '0755'
+      tags: [kubernetes]
+        
+    - name: ☸️ Copy kubeconfig for ubuntu user
+      copy:
+        src: /etc/rancher/k3s/k3s.yaml
+        dest: /home/ubuntu/.kube/config
+        owner: ubuntu
+        group: ubuntu
+        mode: '0600'
+        remote_src: yes
+      tags: [kubernetes]
+        
+    - name: ☸️ Install kubectl completion
+      shell: kubectl completion bash > /etc/bash_completion.d/kubectl
+      args:
+        creates: /etc/bash_completion.d/kubectl
+      tags: [kubernetes]
+
+    # ============================================================================
+    # HELM INSTALLATION
+    # ============================================================================
+    
+    - name: ⎈ Download Helm installation script
+      get_url:
+        url: https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+        dest: /tmp/get-helm-3.sh
+        mode: '0755'
+      tags: [helm]
+        
+    - name: ⎈ Install Helm v{{ helm_version }}
+      shell: DESIRED_VERSION=v{{ helm_version }} /tmp/get-helm-3.sh
+      args:
+        creates: /usr/local/bin/helm
+      tags: [helm]
+        
+    - name: ⎈ Add required Helm repositories
+      kubernetes.core.helm_repository:
+        name: "{{ item.name }}"
+        repo_url: "{{ item.url }}"
+      loop:
+        - { name: "bitnami", url: "https://charts.bitnami.com/bitnami" }
+        - { name: "prometheus-community", url: "https://prometheus-community.github.io/helm-charts" }
+        - { name: "grafana", url: "https://grafana.github.io/helm-charts" }
+        - { name: "ingress-nginx", url: "https://kubernetes.github.io/ingress-nginx" }
+        - { name: "jetstack", url: "https://charts.jetstack.io" }
+      become_user: ubuntu
+      tags: [helm]
+
+    # ============================================================================
+    # CLOUDFORGE AI DEPLOYMENT
+    # ============================================================================
+    
+    - name: 🚀 Clone CloudForge AI repository
+      git:
+        repo: https://github.com/your-org/cloudforge-ai.git
+        dest: /home/ubuntu/cloudforge-ai
+        version: "v{{ cloudforge_version }}"
+        force: yes
+      become_user: ubuntu
+      tags: [cloudforge]
+      
+    - name: 🚀 Create CloudForge AI namespace
+      kubernetes.core.k8s:
+        name: cloudforge-system
+        api_version: v1
+        kind: Namespace
+        state: present
+        kubeconfig: /home/ubuntu/.kube/config
+      become_user: ubuntu
+      tags: [cloudforge]
+      
+    - name: 🔐 Create production secrets
+      kubernetes.core.k8s:
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: cloudforge-secrets
+            namespace: cloudforge-system
+          type: Opaque
+          data:
+            jwt-secret: "{{ security_config.jwt_secret | b64encode }}"
+            database-password: "{{ security_config.database_password | b64encode }}"
+            minio-password: "{{ security_config.minio_password | b64encode }}"
+        kubeconfig: /home/ubuntu/.kube/config
+      become_user: ubuntu
+      tags: [cloudforge, security]
+      
+    - name: ⚙️ Generate Oracle Cloud optimized values file
+      template:
+        src: oracle-values.yaml.j2
+        dest: /home/ubuntu/cloudforge-ai/oracle-values.yaml
+        owner: ubuntu
+        group: ubuntu
+        mode: '0644'
+      tags: [cloudforge]
+      
+    - name: 🚀 Deploy CloudForge AI with Helm
+      kubernetes.core.helm:
+        name: cloudforge
+        chart_ref: /home/ubuntu/cloudforge-ai/helm-chart
+        release_namespace: cloudforge-system
+        create_namespace: yes
+        values_files:
+          - /home/ubuntu/cloudforge-ai/oracle-values.yaml
+        kubeconfig: /home/ubuntu/.kube/config
+        wait: yes
+        timeout: 900s  # 15 minutes timeout
+      become_user: ubuntu
+      tags: [cloudforge]
+          - docker-ce-cli
+          - containerd.io
+        state: present
+
+    - name: Start and enable Docker
+      systemd:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Add user to docker group
+      user:
+        name: "{{ ansible_user }}"
+        groups: docker
+        append: yes
+
+    # Kubernetes installation
+    - name: Add Kubernetes GPG key
+      apt_key:
+        url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+        state: present
+
+    - name: Add Kubernetes repository
+      apt_repository:
+        repo: "deb https://apt.kubernetes.io/ kubernetes-xenial main"
+        state: present
+
+    - name: Install Kubernetes components
+      apt:
+        name:
+          - kubelet={{ k8s_version }}*
+          - kubeadm={{ k8s_version }}*
+          - kubectl={{ k8s_version }}*
+        state: present
+
+    - name: Hold Kubernetes packages
+      dpkg_selections:
+        name: "{{ item }}"
+        selection: hold
+      loop:
+        - kubelet
+        - kubeadm
+        - kubectl
+
+    # Kubernetes cluster initialization (master node only)
+    - name: Initialize Kubernetes cluster
+      shell: kubeadm init --pod-network-cidr=10.244.0.0/16 --apiserver-advertise-address={{ ansible_default_ipv4.address }}
+      when: inventory_hostname == groups['oracle_vms'][0]
+      register: kubeadm_output
+
+    - name: Create .kube directory
+      file:
+        path: /home/{{ ansible_user }}/.kube
+        state: directory
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+      when: inventory_hostname == groups['oracle_vms'][0]
+
+    - name: Copy kubeconfig
+      copy:
+        src: /etc/kubernetes/admin.conf
+        dest: /home/{{ ansible_user }}/.kube/config
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        remote_src: yes
+      when: inventory_hostname == groups['oracle_vms'][0]
+
+    # Install CNI plugin
+    - name: Install Flannel CNI
+      shell: kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+      become_user: "{{ ansible_user }}"
+      when: inventory_hostname == groups['oracle_vms'][0]
+
+    # Join worker nodes
+    - name: Get join command
+      shell: kubeadm token create --print-join-command
+      register: join_command
+      when: inventory_hostname == groups['oracle_vms'][0]
+
+    - name: Join worker nodes
+      shell: "{{ hostvars[groups['oracle_vms'][0]]['join_command']['stdout'] }}"
+      when: inventory_hostname != groups['oracle_vms'][0]
+
+    # Helm installation
+    - name: Download Helm
+      get_url:
+        url: https://get.helm.sh/helm-v3.13.0-linux-arm64.tar.gz
+        dest: /tmp/helm.tar.gz
+
+    - name: Extract Helm
+      unarchive:
+        src: /tmp/helm.tar.gz
+        dest: /tmp/
+        remote_src: yes
+
+    - name: Install Helm
+      copy:
+        src: /tmp/linux-arm64/helm
+        dest: /usr/local/bin/helm
+        mode: '0755'
+        remote_src: yes
+
+    # CloudForge AI deployment
+    - name: Clone CloudForge AI repository
+      git:
+        repo: https://github.com/cloudforge-ai/platform.git
+        dest: /opt/cloudforge-ai
+        version: "{{ cloudforge_version }}"
+      become_user: "{{ ansible_user }}"
+
+    - name: Add Helm repositories
+      shell: |
+        helm repo add bitnami https://charts.bitnami.com/bitnami
+        helm repo add minio https://charts.min.io/
+        helm repo update
+      become_user: "{{ ansible_user }}"
+      when: inventory_hostname == groups['oracle_vms'][0]
+
+    - name: Create CloudForge namespace
+      shell: kubectl create namespace cloudforge-prod --dry-run=client -o yaml | kubectl apply -f -
+      become_user: "{{ ansible_user }}"
+      when: inventory_hostname == groups['oracle_vms'][0]
+
+    - name: Deploy CloudForge AI with Helm
+      shell: |
+        cd /opt/cloudforge-ai
+        helm install cloudforge ./helm-chart \
+          --namespace cloudforge-prod \
+          --set frontend.replicaCount=1 \
+          --set backend.replicaCount=1 \
+          --set aiServices.replicaCount=1 \
+          --set postgresql.primary.persistence.size=20Gi \
+          --set minio.persistence.size=30Gi \
+          --set frontend.resources.limits.memory=256Mi \
+          --set backend.resources.limits.memory=512Mi \
+          --set aiServices.resources.limits.memory=1Gi
+      become_user: "{{ ansible_user }}"
+      when: inventory_hostname == groups['oracle_vms'][0]
+
+    # Configure firewall
+    - name: Configure iptables for Kubernetes
+      shell: |
+        iptables -P FORWARD ACCEPT
+        iptables-save > /etc/iptables/rules.v4
+
+    # Setup monitoring
+    - name: Install node exporter
+      shell: |
+        wget https://github.com/prometheus/node_exporter/releases/download/v1.6.1/node_exporter-1.6.1.linux-arm64.tar.gz
+        tar xvfz node_exporter-1.6.1.linux-arm64.tar.gz
+        cp node_exporter-1.6.1.linux-arm64/node_exporter /usr/local/bin/
+        useradd -rs /bin/false node_exporter
+
+    - name: Create node exporter service
+      copy:
+        content: |
+          [Unit]
+          Description=Node Exporter
+          After=network.target
+
+          [Service]
+          User=node_exporter
+          Group=node_exporter
+          Type=simple
+          ExecStart=/usr/local/bin/node_exporter
+
+          [Install]
+          WantedBy=multi-user.target
+        dest: /etc/systemd/system/node_exporter.service
+
+    - name: Start node exporter
+      systemd:
+        name: node_exporter
+        state: started
+        enabled: yes
+        daemon_reload: yes
+
+# Inventory file: infra/ansible/inventory/oracle_cloud.ini
+# [oracle_vms]
+# oracle-vm-1 ansible_host=xxx.xxx.xxx.xxx ansible_user=ubuntu
+# oracle-vm-2 ansible_host=yyy.yyy.yyy.yyy ansible_user=ubuntu
+#
+# [oracle_vms:vars]
+# ansible_ssh_private_key_file=~/.ssh/oracle_cloud_key
+# ansible_ssh_common_args='-o StrictHostKeyChecking=no'
