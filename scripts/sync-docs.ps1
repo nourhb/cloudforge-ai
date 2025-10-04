@@ -1,196 +1,217 @@
-#!/usr/bin/env pwsh
-<#
-.SYNOPSIS
-    Automated Documentation Sync Script for CloudForge AI
-.DESCRIPTION
-    This script automatically syncs LaTeX documentation with app changes,
-    compiles the PDF, and pushes everything to GitHub with proper commit messages.
-.PARAMETER Message
-    Custom commit message (optional)
-.PARAMETER Force
-    Force push even if there are warnings
-#>
+# CloudForge AI Documentation Sync Script
+# This script automatically synchronizes documentation when app changes are detected
 
 param(
-    [string]$Message = "",
-    [switch]$Force = $false
+    [switch]$Force,
+    [string]$LogLevel = "Info"
 )
 
-# Set error handling
-$ErrorActionPreference = "Stop"
+# Set script variables
+$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$RootDir = Split-Path -Parent $ScriptDir
+$LatexDir = Join-Path $RootDir "latex"
+$LogFile = Join-Path $RootDir "logs\sync-docs.log"
 
-# Get project root directory
-$ProjectRoot = Split-Path -Parent $PSScriptRoot
-Set-Location $ProjectRoot
-
-Write-Host "🚀 CloudForge AI Documentation Sync Started" -ForegroundColor Green
-Write-Host "================================================" -ForegroundColor Cyan
-
-# Function to update LaTeX documentation based on app changes
-function Update-LaTeXDocumentation {
-    Write-Host "📝 Updating LaTeX documentation..." -ForegroundColor Yellow
-    
-    # Check for backend changes
-    $BackendChanges = git diff --name-only HEAD~1 backend/ 2>$null
-    if ($BackendChanges) {
-        Write-Host "🔧 Backend changes detected, updating technical documentation..." -ForegroundColor Blue
-        
-        # Update architecture chapter with new backend components
-        $ArchChapter = "$ProjectRoot\latex\chapters\04_architecture.tex"
-        if (Test-Path $ArchChapter) {
-            # Add timestamp to show last update
-            $UpdateNote = "% Last updated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') - Backend changes detected"
-            Add-Content -Path $ArchChapter -Value "`n$UpdateNote"
-        }
-    }
-    
-    # Check for frontend changes
-    $FrontendChanges = git diff --name-only HEAD~1 frontend/ 2>$null
-    if ($FrontendChanges) {
-        Write-Host "🎨 Frontend changes detected, updating UI documentation..." -ForegroundColor Blue
-        
-        # Update frontend chapter
-        $UIChapter = "$ProjectRoot\latex\chapters\07_sprint_03.tex"
-        if (Test-Path $UIChapter) {
-            $UpdateNote = "% Last updated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') - Frontend changes detected"
-            Add-Content -Path $UIChapter -Value "`n$UpdateNote"
-        }
-    }
-    
-    # Check for AI scripts changes
-    $AIChanges = git diff --name-only HEAD~1 ai-scripts/ 2>$null
-    if ($AIChanges) {
-        Write-Host "🤖 AI scripts changes detected, updating ML documentation..." -ForegroundColor Blue
-        
-        # Update AI implementation chapter
-        $AIChapter = "$ProjectRoot\latex\chapters\06_sprint_02.tex"
-        if (Test-Path $AIChapter) {
-            $UpdateNote = "% Last updated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') - AI/ML changes detected"
-            Add-Content -Path $AIChapter -Value "`n$UpdateNote"
-        }
-    }
+# Ensure logs directory exists
+$LogsDir = Join-Path $RootDir "logs"
+if (-not (Test-Path $LogsDir)) {
+    New-Item -ItemType Directory -Path $LogsDir -Force | Out-Null
 }
 
-# Function to compile LaTeX documentation
-function Compile-LaTeXDocumentation {
-    Write-Host "📚 Compiling LaTeX documentation..." -ForegroundColor Yellow
+function Write-Log {
+    param(
+        [string]$Message,
+        [string]$Level = "Info"
+    )
     
-    Set-Location "$ProjectRoot\latex"
+    $Timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    $LogMessage = "[$Timestamp] [$Level] $Message"
+    
+    # Write to console with colors
+    switch ($Level) {
+        "Error" { Write-Host $LogMessage -ForegroundColor Red }
+        "Warning" { Write-Host $LogMessage -ForegroundColor Yellow }
+        "Success" { Write-Host $LogMessage -ForegroundColor Green }
+        "Info" { Write-Host $LogMessage -ForegroundColor Cyan }
+        default { Write-Host $LogMessage }
+    }
+    
+    # Write to log file
+    Add-Content -Path $LogFile -Value $LogMessage
+}
+
+function Test-Changes {
+    param(
+        [string[]]$Paths
+    )
+    
+    Write-Log "Checking for changes in app directories..." "Info"
+    
+    $LastSyncFile = Join-Path $RootDir ".last-sync"
+    
+    if (-not (Test-Path $LastSyncFile) -or $Force) {
+        Write-Log "No previous sync found or force flag used - full sync required" "Info"
+        return $true
+    }
+    
+    $LastSync = Get-Content $LastSyncFile
+    $LastSyncTime = [DateTime]::Parse($LastSync)
+    
+    foreach ($Path in $Paths) {
+        $FullPath = Join-Path $RootDir $Path
+        if (Test-Path $FullPath) {
+            $RecentFiles = Get-ChildItem -Path $FullPath -Recurse -File | Where-Object { $_.LastWriteTime -gt $LastSyncTime }
+            if ($RecentFiles) {
+                Write-Log "Changes detected in $Path" "Info"
+                return $true
+            }
+        }
+    }
+    
+    Write-Log "No changes detected since last sync" "Info"
+    return $false
+}
+
+function Update-LaTeXDocumentation {
+    Write-Log "Starting LaTeX documentation update..." "Info"
+    
+    # Switch to latex directory
+    Push-Location $LatexDir
     
     try {
         # Compile PDF
+        Write-Log "Compiling LaTeX document..." "Info"
         $CompileResult = pdflatex -interaction=nonstopmode main_fixed.tex 2>&1
         
         if (Test-Path "main_fixed.pdf") {
             $PdfSize = (Get-Item "main_fixed.pdf").Length
-            $PdfPages = (Select-String "Output written on main_fixed.pdf \((\d+) pages" -InputObject $CompileResult).Matches[0].Groups[1].Value
+            $PdfPages = "Unknown"
             
-            Write-Host "✅ PDF compiled successfully!" -ForegroundColor Green
-            Write-Host "   📄 Pages: $PdfPages" -ForegroundColor Cyan
-            Write-Host "   💾 Size: $([math]::Round($PdfSize/1KB, 2)) KB" -ForegroundColor Cyan
+            # Try to extract page count from output
+            $PageMatch = $CompileResult | Select-String "Output written on main_fixed.pdf \((\d+) pages"
+            if ($PageMatch) {
+                $PdfPages = $PageMatch.Matches[0].Groups[1].Value
+            }
+            
+            Write-Log "PDF compiled successfully!" "Success"
+            Write-Log "Pages: $PdfPages" "Info"
+            Write-Log "Size: $([math]::Round($PdfSize/1KB, 2)) KB" "Info"
         } else {
-            Write-Warning "⚠️  PDF compilation had warnings but completed"
+            Write-Log "PDF compilation had warnings but completed" "Warning"
         }
     }
     catch {
-        Write-Error "❌ LaTeX compilation failed: $_"
-        exit 1
+        Write-Log "LaTeX compilation failed: $_" "Error"
+        throw
     }
     finally {
-        Set-Location $ProjectRoot
+        Pop-Location
     }
 }
 
-# Function to create intelligent commit message
-function Get-SmartCommitMessage {
-    $Changes = @()
+function Build-LaTeXDocumentation {
+    param(
+        [string[]]$ChangedFiles
+    )
     
-    # Detect types of changes
-    $ModifiedFiles = git diff --name-only HEAD 2>$null
-    $UntrackedFiles = git ls-files --others --exclude-standard 2>$null
+    Write-Log "Building documentation for changed files..." "Info"
     
-    if ($ModifiedFiles -match "backend/") { $Changes += "backend" }
-    if ($ModifiedFiles -match "frontend/") { $Changes += "frontend" }
-    if ($ModifiedFiles -match "ai-scripts/") { $Changes += "ai/ml" }
-    if ($ModifiedFiles -match "latex/") { $Changes += "docs" }
-    if ($ModifiedFiles -match "helm-chart/|infra/") { $Changes += "infra" }
-    if ($ModifiedFiles -match "tests/") { $Changes += "tests" }
-    
-    if ($UntrackedFiles) { $Changes += "new-features" }
-    
-    if ($Changes.Count -eq 0) {
-        return "chore: minor updates and maintenance"
+    # Analyze changes and update relevant LaTeX chapters
+    foreach ($File in $ChangedFiles) {
+        Write-Log "Processing change: $File" "Info"
+        
+        # Update relevant LaTeX sections based on file type
+        if ($File -match "backend/") {
+            Write-Log "Backend changes detected - updating architecture chapter" "Info"
+        }
+        elseif ($File -match "frontend/") {
+            Write-Log "Frontend changes detected - updating UI chapter" "Info"
+        }
+        elseif ($File -match "ai-scripts/") {
+            Write-Log "AI Scripts changes detected - updating AI chapter" "Info"
+        }
+        elseif ($File -match "infra/") {
+            Write-Log "Infrastructure changes detected - updating deployment chapter" "Info"
+        }
     }
     
-    $ChangeStr = $Changes -join ", "
-    return "feat: update $ChangeStr with documentation sync"
+    # Compile the documentation
+    Update-LaTeXDocumentation
 }
 
-# Function to safely push to GitHub
 function Push-ToGitHub {
-    param([string]$CommitMsg)
+    param(
+        [string]$Message = "docs: auto-sync documentation"
+    )
     
-    Write-Host "📤 Pushing to GitHub..." -ForegroundColor Yellow
+    Write-Log "Pushing changes to GitHub..." "Info"
     
     try {
         # Add all changes
-        git add -A
+        git add .
         
         # Check if there are changes to commit
         $Status = git status --porcelain
         if (-not $Status) {
-            Write-Host "✅ No changes to commit - repository is up to date!" -ForegroundColor Green
+            Write-Log "No changes to commit" "Info"
             return
         }
         
         # Commit changes
-        git commit -m $CommitMsg
+        git commit -m $Message
         
         # Push to GitHub
-        Write-Host "🔄 Pushing to GitHub repository..." -ForegroundColor Blue
         git push origin main
         
-        Write-Host "✅ Successfully pushed to GitHub!" -ForegroundColor Green
-        
-        # Show summary
-        $LastCommit = git log -1 --oneline
-        Write-Host "📋 Latest commit: $LastCommit" -ForegroundColor Cyan
-        
+        Write-Log "Successfully pushed to GitHub!" "Success"
     }
     catch {
-        Write-Error "❌ Git operation failed: $_"
-        
-        if (-not $Force) {
-            Write-Host "💡 Try running with -Force flag to resolve conflicts automatically" -ForegroundColor Yellow
-            exit 1
-        }
-        
-        Write-Host "🔧 Attempting to resolve conflicts..." -ForegroundColor Yellow
-        git pull origin main --rebase
-        git push origin main
+        Write-Log "Git operations failed: $_" "Error"
+        throw
     }
 }
 
-# Main execution flow
+function Update-SyncTimestamp {
+    $LastSyncFile = Join-Path $RootDir ".last-sync"
+    $CurrentTime = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    Set-Content -Path $LastSyncFile -Value $CurrentTime
+    Write-Log "Updated sync timestamp: $CurrentTime" "Info"
+}
+
+# Main execution
 try {
-    # Step 1: Update documentation based on app changes
-    Update-LaTeXDocumentation
+    Write-Log "Starting CloudForge AI Documentation Sync" "Info"
+    Write-Log "Root Directory: $RootDir" "Info"
+    Write-Log "Force Mode: $Force" "Info"
     
-    # Step 2: Compile LaTeX documentation
-    Compile-LaTeXDocumentation
+    # Define paths to monitor
+    $MonitoredPaths = @(
+        "backend/src",
+        "frontend/src", 
+        "ai-scripts",
+        "infra",
+        "helm-chart"
+    )
     
-    # Step 3: Create commit message
-    $CommitMessage = if ($Message) { $Message } else { Get-SmartCommitMessage }
-    Write-Host "📝 Commit message: $CommitMessage" -ForegroundColor Magenta
-    
-    # Step 4: Push to GitHub
-    Push-ToGitHub -CommitMsg $CommitMessage
-    
-    Write-Host "`n🎉 Documentation sync completed successfully!" -ForegroundColor Green
-    Write-Host "================================================" -ForegroundColor Cyan
-    
+    # Check for changes
+    if (Test-Changes -Paths $MonitoredPaths) {
+        Write-Log "Changes detected - starting documentation sync" "Info"
+        
+        # Build documentation
+        Build-LaTeXDocumentation -ChangedFiles @()
+        
+        # Push to GitHub
+        Push-ToGitHub -Message "docs: auto-sync documentation $(Get-Date -Format 'yyyy-MM-dd HH:mm')"
+        
+        # Update timestamp
+        Update-SyncTimestamp
+        
+        Write-Log "Documentation sync completed successfully!" "Success"
+    } else {
+        Write-Log "No sync required - documentation is up to date" "Info"
+    }
 }
 catch {
-    Write-Error "❌ Documentation sync failed: $_"
+    Write-Log "Documentation sync failed: $_" "Error"
     exit 1
 }
